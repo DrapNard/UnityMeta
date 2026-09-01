@@ -1,17 +1,24 @@
 # Testing
 
-## Non-Unity smoke tests
+## Standalone smoke suite
 
-`tests/UnityMeta.SmokeTests` compiles a C# fixture with Roslyn, loads it through
-Mono.Cecil, applies the real weaver core, reloads the transformed assembly and
-asserts runtime behavior.
+`tests/UnityMeta.SmokeTests` compiles C# 9 fixtures with Roslyn, runs the actual Cecil
+weaver, reloads the transformed assembly and asserts runtime behavior. It also directly
+runs the Roslyn source generator and analyzer.
 
-The fixture covers:
+Coverage includes:
 
-- constant field-set transformation;
-- `nameof`-driven sibling-field transformation without reflection;
+- direct field-get transformations that preserve raw storage;
+- constant and `nameof` sibling-field clamp transformations;
+- ordered set + change composition;
+- old/new field-change bindings;
+- suppression of notifications when the final value is unchanged;
+- named attribute metadata;
+- `typeof(...)` metadata;
 - before/after method templates;
-- preservation of target method return values.
+- return-value observation;
+- generated aspect manifest entries;
+- analyzer failures covering every current `UMETA001`-`UMETA009` rule.
 
 Run:
 
@@ -19,23 +26,39 @@ Run:
 ./build.sh
 ```
 
-## Unity 2022.3 manual sanity test
+Normal GitHub CI repeats the smoke suite on Linux, Windows and macOS.
 
-1. Create/open a Unity 2022.3 project.
-2. Add the UPM package from disk.
-3. Import the Clamp and Log samples.
-4. Enter Play Mode.
-5. Confirm `CombatExample.hp = 900` is limited to `hpMax` after `Start`.
-6. Confirm negative energy is limited to zero.
-7. Invoke `LogExample.Attack` and confirm entry/exit messages.
-8. Create a second asmdef referencing `UnityMeta.Runtime` and verify weaving also
-   occurs there.
-9. Add `UNITYMETA_DISABLE_WEAVING` and confirm behavior returns to normal C#.
-10. Build once with Mono and once with IL2CPP to ensure the post-processed assembly
-    is accepted by both backends.
+## Real Unity 2022.3 fixture
 
-## CI
+`tests/Unity2022Project` is a minimal Unity 2022.3.54f1 project referencing the local UPM
+package. Its EditMode tests verify that Unity's actual `ILPostProcessor` path performs:
 
-GitHub Actions builds the runtime, Cecil core and Roslyn 3.8 companion, runs smoke
-tests, and validates UPM metadata. Unity Editor integration still needs a Unity
-runner/license and is intentionally documented as a separate validation tier.
+- field-read transformation;
+- field transformation;
+- field-change notification and equality filtering;
+- after-template return-value observation.
+
+`.github/workflows/unity-2022.yml` is `workflow_dispatch` only because GameCI requires a
+Unity license. Configure `UNITY_LICENSE`, `UNITY_EMAIL`, and `UNITY_PASSWORD` repository
+secrets before running it.
+
+## Manual game-project sanity checks
+
+Before a stable release, also test a consuming Unity 2022.3 game with:
+
+1. no asmdef (`Assembly-CSharp`);
+2. a custom asmdef referencing `UnityMeta.Runtime`;
+3. Mono Editor/Player;
+4. IL2CPP Player;
+5. domain reload enabled and disabled;
+6. `UNITYMETA_DISABLE_WEAVING` to confirm the opt-out path;
+7. imported Clamp, OnChange and Log samples.
+
+## Packaging verification
+
+```bash
+./tools/package-release.sh
+```
+
+builds/tests everything, installs the Roslyn companion into the UPM staging package,
+creates the UPM `.tgz`, builds `UnityMeta.Authoring.nupkg`, and writes SHA-256 checksums.

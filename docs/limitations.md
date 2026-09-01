@@ -1,31 +1,32 @@
 # Known limitations
 
-UnityMeta 0.1 is an MVP proving a Unity-native metaprogramming architecture.
+UnityMeta 0.2 alpha is a usable architecture preview, not Metalama feature parity.
 
 ## Current limitations
 
 - No generalized `Around` template or `meta.Proceed()` yet.
 - No source-visible member/type/interface introduction yet.
-- Set templates are invoked by a direct static call; they are not inlined yet.
-- Field writes can only be transformed in assemblies processed by UnityMeta.
-  Writes from an unprocessed/precompiled assembly cannot be retroactively changed.
-- `TargetInstance` currently targets reference-type declaring types only for
-  method templates.
-- Dynamic field binding supports sibling fields, not properties/indexers.
-- Aspect constructor argument injection currently supports primitive/string/enum
-  metadata; `System.Type`, arrays and complex metadata are planned.
-- No automatic dependency graph/revalidation when a dynamic bound field changes.
-  That behavior belongs in a higher-level user aspect or a future dependency API.
-- Async/iterator method aspects affect the generated entry/stub method, not yet
-  the state-machine body semantics expected from a full Metalama-style around
-  aspect.
-- Exception-safe after/finally semantics are not implemented; `AfterTemplate`
-  runs before normal `ret` instructions only.
-- Unity Inspector writes directly to serialized fields and do not necessarily
-  execute code paths containing `stfld`. Inspector-specific validation is an
-  Editor concern for the aspect author today.
+- Templates are direct public static calls and are not inlined yet.
+- Direct `ldfld`/`ldsfld` reads can be intercepted with `[GetTemplate]`; address-taking
+  (`ldflda`, `ref`/by-reference field access) is not rewritten yet.
+- Properties do not yet have a dedicated property-aspect model.
+- Writes from an unprocessed/precompiled assembly cannot be retroactively transformed.
+- `TargetInstance` does not currently bind value-type declaring instances.
+- Dynamic field binding supports fields, not properties/indexers.
+- Named aspect arguments must be explicitly supplied at the attribute use site.
+- Attribute metadata does not yet cover every legal CLR custom-attribute edge case.
+- Generic template methods are intentionally rejected by the current backend.
+- No dependency/revalidation graph yet. A dynamic bound changing does not automatically
+  reassign every dependent field; change aspects can be used to build project-level behavior
+  until dependency primitives land.
+- Async/iterator aspects do not yet target state-machine bodies with Metalama-like semantics.
+- `AfterTemplate` handles normal returns only, not exceptions/finally.
+- Return values can be observed but not replaced yet.
+- Unity Inspector serialization can bypass gameplay write instructions. Inspector-specific
+  aspect hooks/property drawers are future Editor integration work.
 
 ## Compatibility promise
 
-The public binding attributes and base aspect classes are intended to remain
-stable. Backend internals and exact generated IL are explicitly experimental.
+The base aspect classes and binding concepts are intended to stay recognizable, but all
+0.x releases are pre-1.0 and may receive API refinements when `Around`, inlining, member
+introduction and project-wide selectors are implemented.

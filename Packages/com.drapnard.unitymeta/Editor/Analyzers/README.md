@@ -1,8 +1,11 @@
-# Optional compiler companion
+# Roslyn companion
 
-`UnityMeta.Compiler.dll` is intentionally not committed as a generated binary.
-Build it with `./build.sh`, then run `./tools/install-compiler.sh`.
+Release builds place `UnityMeta.Compiler.dll` in this folder. Its adjacent `.meta` file is
+tracked so Unity imports the DLL with the `RoslynAnalyzer` label.
 
-The core IL-weaving package works without this DLL. The compiler companion adds
-Roslyn diagnostics and a generated aspect manifest, and is the future backend
-for source-visible member introduction.
+Source checkouts intentionally do not commit the binary. Build/install it with:
+
+```bash
+./build.sh
+./tools/install-compiler.sh
+```

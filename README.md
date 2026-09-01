@@ -1,44 +1,50 @@
 # UnityMeta
 
-UnityMeta is an experimental metaprogramming framework for **Unity 2022.3 / C# 9**.
-It is designed around the ergonomics of aspect-oriented tools such as Metalama,
-but uses Unity-native compilation extension points instead of replacing Unity's
-Roslyn compiler.
+UnityMeta is an experimental metaprogramming/aspect framework for **Unity 2022.3 / C# 9**.
+It aims to recover the useful authoring model of tools such as Metalama without replacing
+Unity's Roslyn compiler.
 
-The package itself is intentionally **not a library of gameplay attributes**.
-`Clamp`, `Log`, and similar features live under `Samples~` and demonstrate how a
-game or another package can define its own metacode.
+UnityMeta itself is intentionally **not a catalog of gameplay attributes**. `Clamp`,
+`OnChange`, `Log`, and similar features are samples showing how a Unity project or another
+package can author its own metacode.
 
-## Why this exists
+> Current version: **0.2.0-alpha.1**. The architecture is usable; the API is still allowed
+> to evolve before 1.0.
 
-Unity 2022.3 owns its compilation pipeline and uses an older Roslyn toolchain.
-Modern Metalama versions expect a modern SDK-style build and compiler integration
-that Unity 2022 does not provide. UnityMeta therefore splits metaprogramming into:
+## Architecture
 
-1. a tiny runtime authoring API (`FieldSetAspectAttribute`, `MethodAspectAttribute`,
-   template/binding attributes),
-2. a Unity `ILPostProcessor` backed by Mono.Cecil for behavioral rewriting,
-3. an optional Roslyn 3.8 analyzer/source-generator companion for diagnostics and
-   future source-visible member introduction.
+UnityMeta combines three layers:
 
-This keeps ordinary Unity fields as real fields and allows aspects to be authored
-inside the same Unity project that consumes them.
+1. a tiny C# 9 authoring API (`FieldGetAspectAttribute`, `FieldSetAspectAttribute`,
+   `FieldChangeAspectAttribute`, `MethodAspectAttribute`, template/binding attributes),
+2. a Unity `ILPostProcessor` + Mono.Cecil backend for behavior rewriting,
+3. a Roslyn 3.8 analyzer/source-generator companion for early diagnostics and future
+   source-visible introductions.
 
-## Current MVP
+This lets ordinary Unity fields remain real fields while aspects can be defined inside the
+same project that consumes them.
 
-- Custom field-write aspects defined in user code.
-- Multiple ordered field-write aspects on the same field.
-- Constant aspect constructor arguments injected into templates.
-- Dynamic field values resolved from a `nameof(...)` aspect argument without
-  runtime reflection.
-- Custom method aspects with `Before` and `After` templates.
-- Target instance, target argument, member name and type name bindings.
-- Unity `ILPostProcessor` integration for assemblies referencing UnityMeta.
-- Unity-independent smoke tests for the Cecil weaving core.
-- Roslyn 3.8 analyzer/source-generator project.
-- UPM package layout for Unity 2022.3.
+## Implemented authoring powers
 
-## Example: a user-defined clamp
+- user-defined field-read transformations with `[GetTemplate]`;
+- user-defined field-write transformations with `[SetTemplate]`;
+- user-defined field-change hooks with `[ChangeTemplate]`;
+- `[OldValue]` / `[NewValue]` and real-change filtering using
+  `EqualityComparer<T>.Default`;
+- multiple ordered aspects on the same member;
+- constructor and named attribute argument bindings;
+- primitive, string, enum, `typeof(...)`, and attribute-array metadata emission;
+- `nameof(...)` sibling-field value bindings without runtime reflection;
+- method `[BeforeTemplate]` / `[AfterTemplate]`;
+- `[ReturnValue]` observation from after templates;
+- target instance, target method argument, member name and type name bindings;
+- Roslyn diagnostics for malformed templates;
+- generated aspect manifest;
+- Unity-independent Cecil/compiler smoke tests;
+- Unity 2022.3 integration-test fixture;
+- UPM release packaging and an optional NuGet authoring package.
+
+## Example: user-defined clamp
 
 ```csharp
 using UnityMeta;
@@ -64,7 +70,7 @@ public sealed class ClampAttribute : FieldSetAspectAttribute
 }
 ```
 
-Usage stays ordinary Unity C#:
+Usage remains ordinary Unity C#:
 
 ```csharp
 [Clamp(0, nameof(hpMax))]
@@ -73,53 +79,98 @@ public int hp;
 public int hpMax = 100;
 ```
 
-A write such as `hp = 900;` is rewritten after compilation so the selected
-`SetTemplate` runs before the `stfld` instruction. `hp` remains a real field.
+`hp = 900;` is rewritten after compilation so the selected template runs before `stfld`.
+`hp` remains a real field.
 
-See [Aspect authoring](docs/aspect-authoring.md) for the full template contract.
+## Example: OnChange-style metacode
 
-## Project status
+`FieldChangeAspectAttribute` is a generic framework primitive. An aspect can observe a real
+transition without UnityMeta knowing anything about gameplay:
 
-This first commit is an architectural MVP, not a claim of Metalama feature parity.
-The public authoring surface is deliberately small so future backends can add
-`Around`/`Proceed`, member introduction, fabrics, compile-time templates, richer
-diagnostics and template inlining without forcing gameplay code to depend on
-Mono.Cecil.
-
-See [Roadmap](docs/roadmap.md) and [Known limitations](docs/limitations.md).
-
-## Unity installation
-
-For local development, add the package by filesystem path from Unity Package
-Manager, or add this to `Packages/manifest.json`:
-
-```json
+```csharp
+public sealed class HealthChangedAttribute : FieldChangeAspectAttribute
 {
-  "dependencies": {
-    "com.drapnard.unitymeta": "file:../../UnityMeta/Packages/com.drapnard.unitymeta"
-  }
+    [ChangeTemplate]
+    public static void Changed(
+        [TargetInstance] Combat target,
+        [OldValue] int oldValue,
+        [NewValue] int newValue)
+    {
+        target.OnHealthChanged(oldValue, newValue);
+    }
 }
 ```
 
-Detailed setup: [Unity 2022 setup](docs/unity-2022-setup.md).
+```csharp
+[HealthChanged]
+public int hp;
+```
 
-## Building tools
+If another `[SetTemplate]` clamps/transforms the assignment first, `newValue` is the final
+stored value. Reassigning the same final value does not trigger the change template.
 
-The optional compiler companion is built outside Unity:
+## Installation
+
+### Development checkout
+
+Add the package from disk, or from your project's `Packages/manifest.json`:
+
+```json
+"com.drapnard.unitymeta": "file:../../UnityMeta/Packages/com.drapnard.unitymeta"
+```
+
+For a source checkout, build the optional Roslyn companion with:
 
 ```bash
 ./build.sh
+./tools/install-compiler.sh
 ```
 
-This builds the .NET projects, runs the Cecil smoke tests, and builds the Roslyn
-3.8 compiler companion. Use `./tools/install-compiler.sh` to copy that analyzer
-DLL into the UPM package when desired.
+### Published release
+
+A tagged release builds a precompiled UPM branch. Install an exact release with:
+
+```text
+https://github.com/DrapNard/UnityMeta.git#upm-v0.2.0-alpha.1
+```
+
+The source-repository package is also addressable with Unity's Git `path` query, but the
+`upm-v*` tag is preferred because it includes the precompiled Roslyn companion.
+
+GitHub Releases additionally contain a `.tgz`, checksums, and `UnityMeta.Authoring.nupkg`.
+The NuGet package is for tooling/authoring scenarios; **Unity weaving still requires UPM**.
+
+## Build and verification
+
+```bash
+./build.sh
+./tools/verify-repository.sh
+./tools/package-release.sh
+```
+
+The smoke suite compiles C# 9 fixtures, runs the real Cecil weaver, executes transformed
+assemblies, tests the Roslyn generator/analyzer, and covers field reads, clamp, real-change
+hooks, metadata bindings and return-value observation.
+
+A manual GitHub Action also runs a real Unity 2022.3 EditMode project when Unity/GameCI
+license secrets are configured.
+
+## Not implemented yet
+
+UnityMeta does **not** claim Metalama parity yet. Major remaining work includes generalized
+`Around`/`meta.Proceed()`, template inlining, source-visible member introduction, project-wide
+selectors/fabrics, exception-safe finally semantics, dependency graphs, property aspects,
+ref/address field access interception, and async/iterator state-machine semantics.
+
+See [feature matrix](docs/feature-matrix.md), [limitations](docs/limitations.md), and the
+[roadmap](docs/roadmap.md).
 
 ## Documentation
 
 - [Architecture](docs/architecture.md)
 - [Writing aspects](docs/aspect-authoring.md)
 - [Unity 2022 setup](docs/unity-2022-setup.md)
+- [Publishing](docs/publishing.md)
 - [PolySharp and language compatibility](docs/polysharp.md)
 - [Testing](docs/testing.md)
 - [Known limitations](docs/limitations.md)

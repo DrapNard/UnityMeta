@@ -1,5 +1,37 @@
 # Changelog
 
+## 0.2.0-alpha.1 - 2026-09-01
+
+### Added
+
+- Generic `FieldGetAspectAttribute` / `[GetTemplate]` read transformations for ordinary
+  `ldfld`/`ldsfld` field loads without mutating storage.
+- Generic `FieldChangeAspectAttribute` and `[ChangeTemplate]` authoring model.
+- `[OldValue]` / `[NewValue]` bindings with `EqualityComparer<T>.Default` real-change
+  filtering after final field-set transformations.
+- `[ReturnValue]` observation for method after templates.
+- `[AspectNamedArgument]` binding for explicitly supplied named attribute metadata.
+- `System.Type` and one-dimensional attribute-array metadata emission in the IL backend.
+- Stronger Roslyn diagnostics (`UMETA001` through `UMETA009`) and analyzer release tracking.
+- Roslyn generator/analyzer coverage in the standalone smoke suite.
+- Real Unity 2022.3.54f1 EditMode integration-test fixture and manual GameCI workflow.
+- Release automation for GitHub Releases, precompiled UPM branch/tags, checksums and
+  `UnityMeta.Authoring` NuGet packages.
+- OnChange sample demonstrating project-defined change metacode.
+
+### Changed
+
+- Template methods are explicitly required to be public while the direct-call backend is
+  active, ensuring aspects remain safe across assembly boundaries.
+- Documentation now distinguishes source tags, precompiled `upm-v*` tags and NuGet authoring
+  packages.
+
+### Fixed
+
+- Target-instance field binding now rejects value-type declaring fields instead of emitting
+  invalid IL with the current call backend.
+- Roslyn nullable warnings in the aspect-manifest generator.
+
 ## 0.1.0 - 2026-09-01
 
 ### Added
@@ -7,8 +39,8 @@
 - Initial UnityMeta metaprogramming runtime API.
 - Generic field-store aspect weaving with ordered `SetTemplate` handlers.
 - Generic method `BeforeTemplate` / `AfterTemplate` weaving.
-- Template bindings for values, aspect arguments, target metadata, target
-  instance, target method arguments, and dynamic sibling-field values.
+- Template bindings for values, aspect arguments, target metadata, target instance, target
+  method arguments, and dynamic sibling-field values.
 - Unity 2022 IL post-processor entry point using Mono.Cecil.
 - Optional Roslyn 3.8 analyzer/source-generator companion.
 - Clamp and logging samples.
