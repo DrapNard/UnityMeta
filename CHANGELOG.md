@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.0-alpha.4 - 2026-09-01
+
+### Fixed
+
+- Removed `.meta` files from `Samples~` and `Documentation~`; Unity intentionally excludes tilde-suffixed package trees from the AssetDatabase and does not track them with metadata.
+- Set the `Unity.DrapNard.UnityMeta.CodeGen` assembly to `autoReferenced: false`, as required for Unity code-generation/IL post-processor assemblies.
+- Package validation now rejects `.meta` files in ignored tilde trees and rejects auto-referenced CodeGen assemblies.
+
 ## 0.2.0-alpha.3 - 2026-09-01
 
 ### Fixed

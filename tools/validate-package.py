@@ -23,10 +23,21 @@ for path in required:
 
 # Git-backed UPM packages are immutable in Library/PackageCache. Unity 2022.3
 # cannot synthesize missing .meta files there and ignores the corresponding assets.
-# Require metadata for every shipped folder/file so a release cannot regress into an
-# apparently installed-but-empty package.
+# UPM trees whose path contains a component ending in '~' are intentionally ignored
+# by the AssetDatabase and, per Unity package conventions, must NOT carry .meta files.
+def is_assetdatabase_ignored(path: Path) -> bool:
+    relative = path.relative_to(package)
+    return any(part.endswith("~") for part in relative.parts)
+
+
+for meta in sorted(package.rglob("*.meta")):
+    relative = meta.relative_to(package)
+    sibling_name = meta.name[:-5]
+    if is_assetdatabase_ignored(meta) or sibling_name.endswith("~"):
+        raise SystemExit(f"ignored UPM tree must not contain Unity .meta metadata: {relative}")
+
 for asset in sorted(package.rglob("*")):
-    if asset.name.endswith(".meta"):
+    if asset.name.endswith(".meta") or is_assetdatabase_ignored(asset):
         continue
 
     meta = asset.with_name(asset.name + ".meta")
@@ -64,6 +75,8 @@ if not (codegen_name.startswith("Unity.") and codegen_name.endswith(".CodeGen"))
     raise SystemExit("codegen assembly must follow the Unity.*.CodeGen naming pattern")
 if codegen_asmdef.get("includePlatforms") != ["Editor"]:
     raise SystemExit("codegen assembly must remain Editor-only")
+if codegen_asmdef.get("autoReferenced") is not False:
+    raise SystemExit("Unity *.CodeGen assemblies must set autoReferenced to false")
 if not codegen_asmdef.get("noEngineReferences"):
     raise SystemExit("codegen assembly must not depend on UnityEngine")
 

@@ -1,6 +1,6 @@
 {
   "name": "com.drapnard.unitymeta",
-  "version": "0.2.0-alpha.3",
+  "version": "0.2.0-alpha.4",
   "displayName": "UnityMeta",
   "description": "Metaprogramming/aspect authoring framework for Unity 2022.3 using IL post-processing and optional Roslyn tooling.",
   "unity": "2022.3",

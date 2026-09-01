@@ -15,7 +15,7 @@
     "Mono.Cecil.Pdb.dll",
     "Mono.Cecil.Rocks.dll"
   ],
-  "autoReferenced": true,
+  "autoReferenced": false,
   "defineConstraints": [],
   "versionDefines": [],
   "noEngineReferences": true

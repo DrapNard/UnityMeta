@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.0-alpha.4
+
+### Fixed
+
+- Removed `.meta` files from `Samples~` and `Documentation~`; Unity intentionally ignores tilde-suffixed package trees and does not track them with metadata.
+- Set the `Unity.DrapNard.UnityMeta.CodeGen` assembly to `autoReferenced: false`, as required by Unity for CodeGen assemblies.
+- Hardened package validation against both regressions.
+
 ## 0.2.0-alpha.3
 
 - Added stable Unity `.meta` files across the immutable Git/UPM package so Unity 2022.3
