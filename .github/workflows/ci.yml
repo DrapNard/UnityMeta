@@ -4,21 +4,40 @@ on:
   push:
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
-  dotnet:
+  quality:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
-      - name: Build runtime
-        run: dotnet build src/UnityMeta.Runtime/UnityMeta.Runtime.csproj -c Release
-      - name: Build weaver core
-        run: dotnet build src/UnityMeta.Weaver.Core/UnityMeta.Weaver.Core.csproj -c Release
-      - name: Build Roslyn 3.8 compiler companion
-        run: dotnet build compiler/UnityMeta.Compiler/UnityMeta.Compiler.csproj -c Release
-      - name: Run IL weaving smoke tests
-        run: dotnet run --project tests/UnityMeta.SmokeTests/UnityMeta.SmokeTests.csproj -c Release
+      - name: Build and run compiler/weaver smoke tests
+        run: ./build.sh
       - name: Validate package metadata
         run: python3 tools/validate-package.py
+      - name: Verify release packaging
+        run: ./tools/package-release.sh
+      - name: Upload package candidates
+        uses: actions/upload-artifact@v4
+        with:
+          name: unitymeta-package-candidates
+          path: artifacts/*
+          if-no-files-found: error
+
+  cross-platform-smoke:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Run weaving and compiler smoke tests
+        run: dotnet run --project tests/UnityMeta.SmokeTests/UnityMeta.SmokeTests.csproj -c Release

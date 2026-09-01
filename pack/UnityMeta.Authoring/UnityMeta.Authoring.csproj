@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <LangVersion>9.0</LangVersion>
+    <Nullable>enable</Nullable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
+    <PackageId>UnityMeta.Authoring</PackageId>
+    <PackageVersion>0.2.0-alpha.1</PackageVersion>
+    <Authors>DrapNard</Authors>
+    <Description>Authoring API and Roslyn diagnostics for UnityMeta aspects. Unity projects should install the full UPM package for IL weaving.</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <RepositoryType>git</RepositoryType>
+    <RepositoryUrl>https://github.com/DrapNard/UnityMeta</RepositoryUrl>
+    <PackageTags>unity;metaprogramming;aop;aspect;roslyn;weaver</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="../../src/UnityMeta.Runtime/bin/Release/netstandard2.0/UnityMeta.Runtime.dll"
+          Pack="true"
+          PackagePath="lib/netstandard2.0/UnityMeta.Runtime.dll" />
+    <None Include="../../compiler/UnityMeta.Compiler/bin/Release/netstandard2.0/UnityMeta.Compiler.dll"
+          Pack="true"
+          PackagePath="analyzers/dotnet/cs/UnityMeta.Compiler.dll" />
+    <None Include="../../README.md"
+          Pack="true"
+          PackagePath="README.md" />
+  </ItemGroup>
+</Project>

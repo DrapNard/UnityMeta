@@ -1,0 +1,83 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+env:
+  DOTNET_NOLOGO: true
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Resolve version
+        id: version
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Build, test and package
+        run: ./tools/package-release.sh "${{ steps.version.outputs.version }}"
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          EXTRA=()
+          if [[ "$VERSION" == *-* ]]; then
+            EXTRA+=(--prerelease)
+          fi
+          gh release create "$GITHUB_REF_NAME" artifacts/* \
+            --title "UnityMeta $VERSION" \
+            --generate-notes \
+            "${EXTRA[@]}"
+
+      - name: Publish NuGet package when configured
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        shell: bash
+        run: |
+          if [[ -z "${NUGET_API_KEY:-}" ]]; then
+            echo "NUGET_API_KEY is not configured; skipping nuget.org publication."
+            exit 0
+          fi
+          dotnet nuget push artifacts/UnityMeta.Authoring.*.nupkg \
+            --api-key "$NUGET_API_KEY" \
+            --source https://api.nuget.org/v3/index.json \
+            --skip-duplicate
+
+      - name: Publish precompiled UPM branch and version tag
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        shell: bash
+        run: |
+          PACKAGE_COPY="$(mktemp -d)"
+          cp -a Packages/com.drapnard.unitymeta/. "$PACKAGE_COPY/"
+
+          git config user.name "DrapNard"
+          git config user.email "drapnard@proton.me"
+          git checkout --orphan __unitymeta_upm_release
+          git rm -rf . >/dev/null 2>&1 || true
+          find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+          cp -a "$PACKAGE_COPY/." .
+          git add --all
+          git commit -m "release(upm): $VERSION"
+          git branch -M upm
+          git push origin upm --force
+          git tag "upm-v$VERSION"
+          git push origin "refs/tags/upm-v$VERSION"
