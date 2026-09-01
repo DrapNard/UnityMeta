@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.0-alpha.5 - 2026-09-01
+
+### Fixed
+
+- Normalize Cecil method-body macros before weaving and optimize them again afterwards, so
+  short Roslyn branches (`br.s`, `leave.s`, and related forms) are widened when injected
+  aspect IL pushes their targets outside the signed-byte range. This prevents malformed IL
+  in large methods and compiler-generated state machines such as async/coroutine `MoveNext`.
+- Added smoke regressions for large short-branch expansion and compiler-generated async `MoveNext` state machines.
+
 ## 0.2.0-alpha.4 - 2026-09-01
 
 ### Fixed

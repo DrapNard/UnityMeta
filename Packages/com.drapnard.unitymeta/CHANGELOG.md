@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.0-alpha.5
+
+### Fixed
+
+- Cecil short-branch/macro normalization around weaving prevents invalid IL when aspects
+  substantially enlarge methods or generated state-machine `MoveNext` bodies.
+
 ## 0.2.0-alpha.4
 
 ### Fixed

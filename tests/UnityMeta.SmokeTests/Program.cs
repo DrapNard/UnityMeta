@@ -16,6 +16,7 @@ internal static class Program
 {
     private const string Fixture = @"
 using System;
+using System.Threading.Tasks;
 using UnityMeta;
 
 public sealed class ClampAttribute : FieldSetAspectAttribute
@@ -118,6 +119,42 @@ public sealed class Combat
     public void SetHp(int value) { Hp = value; }
     public void SetDisplayed(int value) { Displayed = value; }
     public int ReadDisplayed() { return Displayed; }
+
+    public void StressShortBranch(bool skip)
+    {
+        if (skip)
+        {
+            return;
+        }
+
+        // Keep the source body compact enough for Roslyn to emit a short branch.
+        // Each assignment expands substantially once Clamp + TrackChange are woven.
+        FixedHp = 1000;
+        FixedHp = 1001;
+        FixedHp = 1002;
+        FixedHp = 1003;
+        FixedHp = 1004;
+        FixedHp = 1005;
+        FixedHp = 1006;
+        FixedHp = 1007;
+    }
+
+    public async Task<int> StressStateMachine(bool skip)
+    {
+        await Task.Yield();
+        if (skip)
+        {
+            return FixedHp;
+        }
+
+        FixedHp = 1100;
+        FixedHp = 1101;
+        FixedHp = 1102;
+        FixedHp = 1103;
+        FixedHp = 1104;
+        FixedHp = 1105;
+        return FixedHp;
+    }
 
     [CountCalls(typeof(Combat), Label = ""attack"")]
     public int Attack(int damage)
@@ -349,6 +386,15 @@ public sealed class BrokenMethodAttribute : MethodAspectAttribute
         AssertEqual(1, (int)combatType.GetField("AfterCount")!.GetValue(combat)!, "after template");
         AssertEqual(14, (int)combatType.GetField("LastReturnValue")!.GetValue(combat)!, "after return-value binding");
         AssertEqual("Combat:attack", (string)combatType.GetField("LastMetadata")!.GetValue(combat)!, "Type + named argument metadata");
+
+        MethodInfo stressShortBranch = combatType.GetMethod("StressShortBranch")!;
+        stressShortBranch.Invoke(combat, new object[] { true });
+        stressShortBranch.Invoke(combat, new object[] { false });
+        AssertEqual(100, (int)fixedHp.GetValue(combat)!, "short branch remains valid after large weaving expansion");
+
+        MethodInfo stressStateMachine = combatType.GetMethod("StressStateMachine")!;
+        var stateMachineTask = (System.Threading.Tasks.Task<int>)stressStateMachine.Invoke(combat, new object[] { false })!;
+        AssertEqual(100, stateMachineTask.GetAwaiter().GetResult(), "state-machine MoveNext remains valid after weaving");
     }
 
     private static void AssertEqual(int expected, int actual, string name)

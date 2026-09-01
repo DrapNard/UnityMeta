@@ -39,8 +39,8 @@ Unity's UPM package. Publishing to nuget.org occurs only when the repository sec
 After CI is green and `package.json` contains the intended version:
 
 ```bash
-git tag v0.2.0-alpha.4
-git push origin v0.2.0-alpha.4
+git tag v0.2.0-alpha.5
+git push origin v0.2.0-alpha.5
 ```
 
 The tag version must exactly match `Packages/com.drapnard.unitymeta/package.json`.

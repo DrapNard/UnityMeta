@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Mono.Cecil;
+using Mono.Cecil.Rocks;
 
 namespace UnityMeta.Weaver
 {
@@ -45,20 +46,41 @@ namespace UnityMeta.Weaver
                         continue;
                     }
 
-                    // Process original field reads before stores. Store weaving injects
-                    // raw field loads for old-value/dynamic metadata that must not be
-                    // reinterpreted as user-level reads.
-                    if (fieldLoadWeaver.Process(method))
+                    // Roslyn emits short-form branches (br.s, leave.s, etc.) whenever the
+                    // original target is within sbyte range. Aspect weaving can insert enough
+                    // IL between the branch and target to push that distance past +/-127 bytes.
+                    // Cecil does not implicitly widen those existing opcodes while arbitrary
+                    // instructions are inserted, so normalize macros before weaving and choose
+                    // the correct compact/long forms again after all transformations.
+                    method.Body.SimplifyMacros();
+
+                    bool methodModified = false;
+                    try
                     {
-                        modified = true;
+                        // Process original field reads before stores. Store weaving injects
+                        // raw field loads for old-value/dynamic metadata that must not be
+                        // reinterpreted as user-level reads.
+                        if (fieldLoadWeaver.Process(method))
+                        {
+                            methodModified = true;
+                        }
+
+                        if (fieldWeaver.Process(method))
+                        {
+                            methodModified = true;
+                        }
+
+                        if (methodWeaver.Process(method))
+                        {
+                            methodModified = true;
+                        }
+                    }
+                    finally
+                    {
+                        method.Body.OptimizeMacros();
                     }
 
-                    if (fieldWeaver.Process(method))
-                    {
-                        modified = true;
-                    }
-
-                    if (methodWeaver.Process(method))
+                    if (methodModified)
                     {
                         modified = true;
                     }
