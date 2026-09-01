@@ -29,13 +29,57 @@ PluginImporter:
   isPreloaded: 0
   isOverridable: 0
   isExplicitlyReferenced: 0
-  validateReferences: 1
+  # Roslyn analyzers are compiler inputs, not runtime/editor plugins. Unity's
+  # PluginImporter must not try to load or validate them as normal managed plugins.
+  validateReferences: 0
   platformData:
+  - first:
+      : Any
+    second:
+      enabled: 0
+      settings:
+        Exclude Editor: 1
+        Exclude Linux64: 1
+        Exclude OSXUniversal: 1
+        Exclude Win: 1
+        Exclude Win64: 1
   - first:
       Any:
     second:
-      enabled: 1
+      enabled: 0
       settings: {}
+  - first:
+      Editor: Editor
+    second:
+      enabled: 0
+      settings:
+        CPU: AnyCPU
+        DefaultValueInitialized: true
+        OS: AnyOS
+  - first:
+      Standalone: Linux64
+    second:
+      enabled: 0
+      settings:
+        CPU: None
+  - first:
+      Standalone: OSXUniversal
+    second:
+      enabled: 0
+      settings:
+        CPU: None
+  - first:
+      Standalone: Win
+    second:
+      enabled: 0
+      settings:
+        CPU: None
+  - first:
+      Standalone: Win64
+    second:
+      enabled: 0
+      settings:
+        CPU: None
   userData:
   assetBundleName:
   assetBundleVariant:

@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.2.0-alpha.3 - 2026-09-01
+
+### Fixed
+
+- Git/UPM packages now ship stable Unity `.meta` files for every asset and folder. Unity
+  2022.3 treats Git package caches as immutable and ignores assets whose metadata is
+  missing, which previously made the package appear empty and prevented `UnityMeta.Runtime`
+  from compiling.
+- The Roslyn companion DLL is now imported strictly as a `RoslynAnalyzer`: normal plugin
+  platforms are disabled and PluginImporter reference validation is disabled so Unity does
+  not try to resolve compiler-host dependencies such as `Microsoft.CodeAnalysis` as game
+  assemblies.
+- Package validation now rejects releases with missing `.meta` files or an analyzer DLL
+  accidentally enabled as a normal plugin.
+
 ## 0.2.0-alpha.2 - 2026-09-01
 
 ### Fixed

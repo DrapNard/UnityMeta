@@ -20,6 +20,19 @@ for path in required:
     if not path.exists():
         raise SystemExit(f"missing required package file: {path}")
 
+
+# Git-backed UPM packages are immutable in Library/PackageCache. Unity 2022.3
+# cannot synthesize missing .meta files there and ignores the corresponding assets.
+# Require metadata for every shipped folder/file so a release cannot regress into an
+# apparently installed-but-empty package.
+for asset in sorted(package.rglob("*")):
+    if asset.name.endswith(".meta"):
+        continue
+
+    meta = asset.with_name(asset.name + ".meta")
+    if not meta.exists():
+        raise SystemExit(f"missing Unity .meta for immutable UPM asset: {asset}")
+
 metadata = json.loads((package / "package.json").read_text(encoding="utf-8"))
 if metadata.get("unity") != "2022.3":
     raise SystemExit("Unity 2022.3 must remain the package compatibility baseline")
@@ -55,9 +68,16 @@ if not codegen_asmdef.get("noEngineReferences"):
     raise SystemExit("codegen assembly must not depend on UnityEngine")
 
 analyzer = package / "Editor" / "Analyzers" / "UnityMeta.Compiler.dll"
-if analyzer.exists():
-    meta = analyzer.with_suffix(analyzer.suffix + ".meta")
-    if not meta.exists() or "RoslynAnalyzer" not in meta.read_text(encoding="utf-8"):
-        raise SystemExit("installed compiler DLL must have a RoslynAnalyzer .meta label")
+analyzer_meta_path = analyzer.with_suffix(analyzer.suffix + ".meta")
+if not analyzer_meta_path.exists():
+    raise SystemExit("compiler companion must ship stable Unity plugin metadata")
+
+analyzer_meta = analyzer_meta_path.read_text(encoding="utf-8")
+if "RoslynAnalyzer" not in analyzer_meta:
+    raise SystemExit("compiler companion must have a RoslynAnalyzer .meta label")
+if "validateReferences: 0" not in analyzer_meta:
+    raise SystemExit("Roslyn analyzer plugin reference validation must be disabled")
+if "enabled: 1" in analyzer_meta:
+    raise SystemExit("Roslyn analyzer DLL must not be enabled as a normal Unity plugin")
 
 print(f"UnityMeta package metadata looks valid ({version}).")
