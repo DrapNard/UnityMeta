@@ -1,0 +1,22 @@
+{
+  "name": "Unity.DrapNard.UnityMeta.CodeGen",
+  "rootNamespace": "UnityMeta.Editor.CodeGen",
+  "references": [
+    "UnityMeta.Runtime"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": true,
+  "precompiledReferences": [
+    "Mono.Cecil.dll",
+    "Mono.Cecil.Pdb.dll",
+    "Mono.Cecil.Rocks.dll"
+  ],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": true
+}

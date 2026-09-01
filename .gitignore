@@ -1,0 +1,25 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+.idea/
+
+# Unity
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+UserSettings/
+MemoryCaptures/
+
+# Generated compiler artifact inside the UPM package
+Packages/com.drapnard.unitymeta/Editor/Analyzers/*.dll
+Packages/com.drapnard.unitymeta/Editor/Analyzers/*.pdb
+
+# Python
+__pycache__/
+*.pyc

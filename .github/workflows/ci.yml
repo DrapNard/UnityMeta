@@ -1,0 +1,24 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  dotnet:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Build runtime
+        run: dotnet build src/UnityMeta.Runtime/UnityMeta.Runtime.csproj -c Release
+      - name: Build weaver core
+        run: dotnet build src/UnityMeta.Weaver.Core/UnityMeta.Weaver.Core.csproj -c Release
+      - name: Build Roslyn 3.8 compiler companion
+        run: dotnet build compiler/UnityMeta.Compiler/UnityMeta.Compiler.csproj -c Release
+      - name: Run IL weaving smoke tests
+        run: dotnet run --project tests/UnityMeta.SmokeTests/UnityMeta.SmokeTests.csproj -c Release
+      - name: Validate package metadata
+        run: python3 tools/validate-package.py
