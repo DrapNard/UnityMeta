@@ -1,0 +1,44 @@
+{
+  "name": "com.drapnard.unitymeta",
+  "version": "0.2.0-alpha.3",
+  "displayName": "UnityMeta",
+  "description": "Metaprogramming/aspect authoring framework for Unity 2022.3 using IL post-processing and optional Roslyn tooling.",
+  "unity": "2022.3",
+  "author": {
+    "name": "DrapNard",
+    "email": "drapnard@proton.me"
+  },
+  "dependencies": {
+    "com.unity.nuget.mono-cecil": "1.11.4"
+  },
+  "keywords": [
+    "metaprogramming",
+    "aop",
+    "aspect",
+    "weaver",
+    "cecil",
+    "roslyn"
+  ],
+  "samples": [
+    {
+      "displayName": "Clamp Aspect",
+      "description": "Defines a custom field-set aspect with constant and dynamic bounds.",
+      "path": "Samples~/Clamp"
+    },
+    {
+      "displayName": "Field Read Transform Aspect",
+      "description": "Defines a field-get aspect that transforms reads without mutating storage.",
+      "path": "Samples~/ReadTransform"
+    },
+    {
+      "displayName": "Method Logging Aspect",
+      "description": "Defines a custom method aspect with before/after templates.",
+      "path": "Samples~/Log"
+    },
+    {
+      "displayName": "Field OnChange Aspect",
+      "description": "Defines a field-change aspect with old/new values and real-change filtering.",
+      "path": "Samples~/OnChange"
+    }
+  ]
+}
