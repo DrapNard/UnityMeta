@@ -44,16 +44,18 @@ namespace UnityMeta.Editor.CodeGen
 
             try
             {
+                byte[] pdbData = compiledAssembly.InMemoryAssembly.PdbData ?? Array.Empty<byte>();
+
                 using (var resolver = new UnityAssemblyResolver(compiledAssembly))
                 using (var peInput = new MemoryStream(compiledAssembly.InMemoryAssembly.PeData))
-                using (var pdbInput = new MemoryStream(compiledAssembly.InMemoryAssembly.PdbData))
+                using (var pdbInput = new MemoryStream(pdbData))
                 {
+                    bool readSymbols = pdbData.Length > 0;
                     var reader = new ReaderParameters
                     {
                         AssemblyResolver = resolver,
-                        ReadSymbols = compiledAssembly.InMemoryAssembly.PdbData != null &&
-                                      compiledAssembly.InMemoryAssembly.PdbData.Length > 0,
-                        SymbolStream = pdbInput
+                        ReadSymbols = readSymbols,
+                        SymbolStream = readSymbols ? pdbInput : null
                     };
 
                     using (AssemblyDefinition assembly = AssemblyDefinition.ReadAssembly(peInput, reader))

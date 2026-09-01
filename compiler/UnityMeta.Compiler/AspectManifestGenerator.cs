@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -18,7 +17,7 @@ namespace UnityMeta.Compiler
 
         public void Execute(GeneratorExecutionContext context)
         {
-            var receiver = context.SyntaxReceiver as Receiver;
+            Receiver? receiver = context.SyntaxReceiver as Receiver;
             if (receiver == null)
             {
                 return;
@@ -29,7 +28,7 @@ namespace UnityMeta.Compiler
             foreach (ClassDeclarationSyntax declaration in receiver.Classes)
             {
                 SemanticModel model = context.Compilation.GetSemanticModel(declaration.SyntaxTree);
-                INamedTypeSymbol symbol = model.GetDeclaredSymbol(declaration) as INamedTypeSymbol;
+                INamedTypeSymbol? symbol = model.GetDeclaredSymbol(declaration) as INamedTypeSymbol;
                 if (symbol == null || !IsAspect(symbol))
                 {
                     continue;
@@ -65,11 +64,14 @@ namespace UnityMeta.Compiler
 
         private static bool IsAspect(INamedTypeSymbol symbol)
         {
-            INamedTypeSymbol current = symbol.BaseType;
+            INamedTypeSymbol? current = symbol.BaseType;
             while (current != null)
             {
                 string name = current.ToDisplayString();
-                if (name == "UnityMeta.FieldSetAspectAttribute" || name == "UnityMeta.MethodAspectAttribute")
+                if (name == "UnityMeta.FieldSetAspectAttribute" ||
+                    name == "UnityMeta.FieldGetAspectAttribute" ||
+                    name == "UnityMeta.FieldChangeAspectAttribute" ||
+                    name == "UnityMeta.MethodAspectAttribute")
                 {
                     return true;
                 }
@@ -86,7 +88,7 @@ namespace UnityMeta.Compiler
 
             public void OnVisitSyntaxNode(SyntaxNode syntaxNode)
             {
-                var declaration = syntaxNode as ClassDeclarationSyntax;
+                ClassDeclarationSyntax? declaration = syntaxNode as ClassDeclarationSyntax;
                 if (declaration != null && declaration.BaseList != null)
                 {
                     Classes.Add(declaration);

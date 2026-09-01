@@ -43,12 +43,21 @@ namespace UnityMeta.Weaver
                         continue;
                     }
 
+                    if (isBefore && isAfter)
+                    {
+                        _logger.Error(
+                            "Method template '" + templateMethod.FullName +
+                            "' cannot be both [BeforeTemplate] and [AfterTemplate].");
+                        return false;
+                    }
+
                     BoundTemplate template;
                     if (!TemplateBinding.TryBindMethodTemplate(
                             _module,
                             templateMethod,
                             aspect.Attribute,
                             method,
+                            isAfter,
                             out template))
                     {
                         _logger.Error(
@@ -60,7 +69,7 @@ namespace UnityMeta.Weaver
                     {
                         before.Add(Tuple.Create(aspect, template));
                     }
-                    if (isAfter)
+                    else
                     {
                         after.Add(Tuple.Create(aspect, template));
                     }
@@ -72,11 +81,36 @@ namespace UnityMeta.Weaver
 
             foreach (Tuple<AspectUse, BoundTemplate> item in before)
             {
-                EmitMethodTemplateCall(il, first, item.Item1, item.Item2, method);
+                EmitMethodTemplateCall(il, first, item.Item1, item.Item2, method, null);
             }
 
             if (after.Count > 0)
             {
+                bool captureReturnValue = false;
+                foreach (Tuple<AspectUse, BoundTemplate> item in after)
+                {
+                    if (item.Item2.Uses(BindingKind.ReturnValue))
+                    {
+                        captureReturnValue = true;
+                        break;
+                    }
+                }
+
+                VariableDefinition returnValueLocal = null;
+                if (captureReturnValue)
+                {
+                    if (method.ReturnType.MetadataType == MetadataType.Void || method.ReturnType.IsByReference)
+                    {
+                        _logger.Error(
+                            "Return-value binding is not supported for method '" + method.FullName + "'.");
+                        return false;
+                    }
+
+                    method.Body.InitLocals = true;
+                    returnValueLocal = new VariableDefinition(_module.ImportReference(method.ReturnType));
+                    method.Body.Variables.Add(returnValueLocal);
+                }
+
                 Instruction[] snapshot = new Instruction[method.Body.Instructions.Count];
                 method.Body.Instructions.CopyTo(snapshot, 0);
 
@@ -87,9 +121,25 @@ namespace UnityMeta.Weaver
                         continue;
                     }
 
+                    if (returnValueLocal != null)
+                    {
+                        il.InsertBefore(instruction, il.Create(OpCodes.Stloc, returnValueLocal));
+                    }
+
                     for (int i = after.Count - 1; i >= 0; i--)
                     {
-                        EmitMethodTemplateCall(il, instruction, after[i].Item1, after[i].Item2, method);
+                        EmitMethodTemplateCall(
+                            il,
+                            instruction,
+                            after[i].Item1,
+                            after[i].Item2,
+                            method,
+                            returnValueLocal);
+                    }
+
+                    if (returnValueLocal != null)
+                    {
+                        il.InsertBefore(instruction, il.Create(OpCodes.Ldloc, returnValueLocal));
                     }
                 }
             }
@@ -102,7 +152,8 @@ namespace UnityMeta.Weaver
             Instruction anchor,
             AspectUse aspect,
             BoundTemplate template,
-            MethodDefinition targetMethod)
+            MethodDefinition targetMethod,
+            VariableDefinition returnValueLocal)
         {
             foreach (ParameterBinding binding in template.Bindings)
             {
@@ -110,6 +161,9 @@ namespace UnityMeta.Weaver
                 {
                     case BindingKind.AspectArgument:
                         ILValueEmitter.EmitAspectArgument(il, anchor, aspect.Attribute, binding.Index);
+                        break;
+                    case BindingKind.AspectNamedArgument:
+                        ILValueEmitter.EmitAspectNamedArgument(il, anchor, aspect.Attribute, binding.Name);
                         break;
                     case BindingKind.TargetMemberName:
                         il.InsertBefore(anchor, il.Create(OpCodes.Ldstr, targetMethod.Name));
@@ -122,6 +176,9 @@ namespace UnityMeta.Weaver
                         break;
                     case BindingKind.TargetArgument:
                         EmitLoadTargetArgument(il, anchor, targetMethod, binding.Index);
+                        break;
+                    case BindingKind.ReturnValue:
+                        il.InsertBefore(anchor, il.Create(OpCodes.Ldloc, returnValueLocal));
                         break;
                     default:
                         throw new NotSupportedException(

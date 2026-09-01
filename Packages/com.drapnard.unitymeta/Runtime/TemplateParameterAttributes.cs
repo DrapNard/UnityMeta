@@ -11,6 +11,33 @@ namespace UnityMeta
     }
 
     /// <summary>
+    /// Binds a field-change template parameter to the value that was stored before
+    /// the assignment.
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Parameter)]
+    public sealed class OldValueAttribute : Attribute
+    {
+    }
+
+    /// <summary>
+    /// Binds a field-change template parameter to the final transformed value that
+    /// has just been stored.
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Parameter)]
+    public sealed class NewValueAttribute : Attribute
+    {
+    }
+
+    /// <summary>
+    /// Binds an after-method template parameter to the value about to be returned
+    /// by the target method. The template observes the value but does not replace it.
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Parameter)]
+    public sealed class ReturnValueAttribute : Attribute
+    {
+    }
+
+    /// <summary>
     /// Binds a template parameter to a positional constructor argument of the
     /// aspect instance stored in metadata.
     /// </summary>
@@ -23,6 +50,20 @@ namespace UnityMeta
         }
 
         public int Index { get; private set; }
+    }
+
+    /// <summary>
+    /// Binds a template parameter to a named attribute argument (property or field).
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Parameter)]
+    public sealed class AspectNamedArgumentAttribute : Attribute
+    {
+        public AspectNamedArgumentAttribute(string name)
+        {
+            Name = name;
+        }
+
+        public string Name { get; private set; }
     }
 
     /// <summary>
@@ -66,7 +107,7 @@ namespace UnityMeta
     /// <summary>
     /// Interprets an aspect constructor argument as the name of a sibling field
     /// and loads that field directly at the woven call site. This provides
-    /// dynamic bounds/configuration without runtime reflection.
+    /// dynamic configuration without runtime reflection.
     /// </summary>
     [AttributeUsage(AttributeTargets.Parameter)]
     public sealed class FieldValueFromAspectArgumentAttribute : Attribute

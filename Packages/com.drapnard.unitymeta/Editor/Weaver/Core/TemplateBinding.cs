@@ -7,7 +7,11 @@ namespace UnityMeta.Weaver
     internal enum BindingKind
     {
         Value,
+        OldValue,
+        NewValue,
+        ReturnValue,
         AspectArgument,
+        AspectNamedArgument,
         TargetMemberName,
         TargetTypeName,
         TargetInstance,
@@ -19,6 +23,7 @@ namespace UnityMeta.Weaver
     {
         public BindingKind Kind;
         public int Index;
+        public string Name;
         public FieldReference Field;
     }
 
@@ -26,6 +31,19 @@ namespace UnityMeta.Weaver
     {
         public MethodReference Method;
         public ParameterBinding[] Bindings;
+
+        public bool Uses(BindingKind kind)
+        {
+            foreach (ParameterBinding binding in Bindings)
+            {
+                if (binding.Kind == kind)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
     }
 
     internal static class TemplateBinding
@@ -40,7 +58,8 @@ namespace UnityMeta.Weaver
         {
             boundTemplate = null;
 
-            if (!template.IsStatic || template.ReturnType.FullName != targetField.FieldType.FullName)
+            if (!template.IsStatic || !template.IsPublic ||
+                template.ReturnType.FullName != targetField.FieldType.FullName)
             {
                 return false;
             }
@@ -52,7 +71,120 @@ namespace UnityMeta.Weaver
                 ParameterDefinition parameter = template.Parameters[i];
                 ParameterBinding binding;
 
-                if (!TryBindFieldParameter(parameter, aspect, targetField, targetFieldDefinition, out binding))
+                if (!TryBindFieldParameter(
+                        parameter,
+                        aspect,
+                        targetField,
+                        targetFieldDefinition,
+                        false,
+                        out binding))
+                {
+                    return false;
+                }
+
+                if (binding.Kind == BindingKind.OldValue || binding.Kind == BindingKind.NewValue)
+                {
+                    return false;
+                }
+
+                bindings[i] = binding;
+            }
+
+            boundTemplate = new BoundTemplate
+            {
+                Method = module.ImportReference(template),
+                Bindings = bindings
+            };
+
+            return true;
+        }
+
+        public static bool TryBindFieldGetTemplate(
+            ModuleDefinition module,
+            MethodDefinition template,
+            CustomAttribute aspect,
+            FieldReference targetField,
+            FieldDefinition targetFieldDefinition,
+            out BoundTemplate boundTemplate)
+        {
+            boundTemplate = null;
+
+            if (!template.IsStatic || !template.IsPublic ||
+                template.ReturnType.FullName != targetField.FieldType.FullName)
+            {
+                return false;
+            }
+
+            var bindings = new ParameterBinding[template.Parameters.Count];
+
+            for (int i = 0; i < template.Parameters.Count; i++)
+            {
+                ParameterDefinition parameter = template.Parameters[i];
+                ParameterBinding binding;
+
+                if (!TryBindFieldParameter(
+                        parameter,
+                        aspect,
+                        targetField,
+                        targetFieldDefinition,
+                        false,
+                        out binding))
+                {
+                    return false;
+                }
+
+                if (binding.Kind == BindingKind.OldValue || binding.Kind == BindingKind.NewValue)
+                {
+                    return false;
+                }
+
+                bindings[i] = binding;
+            }
+
+            boundTemplate = new BoundTemplate
+            {
+                Method = module.ImportReference(template),
+                Bindings = bindings
+            };
+
+            return true;
+        }
+
+        public static bool TryBindFieldChangeTemplate(
+            ModuleDefinition module,
+            MethodDefinition template,
+            CustomAttribute aspect,
+            FieldReference targetField,
+            FieldDefinition targetFieldDefinition,
+            out BoundTemplate boundTemplate)
+        {
+            boundTemplate = null;
+
+            if (!template.IsStatic || !template.IsPublic ||
+                template.ReturnType.MetadataType != MetadataType.Void)
+            {
+                return false;
+            }
+
+            var bindings = new ParameterBinding[template.Parameters.Count];
+
+            for (int i = 0; i < template.Parameters.Count; i++)
+            {
+                ParameterDefinition parameter = template.Parameters[i];
+                ParameterBinding binding;
+
+                if (!TryBindFieldParameter(
+                        parameter,
+                        aspect,
+                        targetField,
+                        targetFieldDefinition,
+                        true,
+                        out binding))
+                {
+                    return false;
+                }
+
+                if (binding.Kind == BindingKind.Value)
                 {
                     return false;
                 }
@@ -74,11 +206,13 @@ namespace UnityMeta.Weaver
             MethodDefinition template,
             CustomAttribute aspect,
             MethodDefinition targetMethod,
+            bool isAfter,
             out BoundTemplate boundTemplate)
         {
             boundTemplate = null;
 
-            if (!template.IsStatic || template.ReturnType.MetadataType != MetadataType.Void)
+            if (!template.IsStatic || !template.IsPublic ||
+                template.ReturnType.MetadataType != MetadataType.Void)
             {
                 return false;
             }
@@ -90,7 +224,7 @@ namespace UnityMeta.Weaver
                 ParameterDefinition parameter = template.Parameters[i];
                 ParameterBinding binding;
 
-                if (!TryBindMethodParameter(parameter, aspect, targetMethod, out binding))
+                if (!TryBindMethodParameter(parameter, aspect, targetMethod, isAfter, out binding))
                 {
                     return false;
                 }
@@ -112,18 +246,41 @@ namespace UnityMeta.Weaver
             CustomAttribute aspect,
             FieldReference targetField,
             FieldDefinition targetFieldDefinition,
+            bool isChangeTemplate,
             out ParameterBinding binding)
         {
             binding = null;
 
             if (parameter.HasAttribute(MetaNames.Value))
             {
-                if (parameter.ParameterType.FullName != targetField.FieldType.FullName)
+                if (isChangeTemplate || parameter.ParameterType.FullName != targetField.FieldType.FullName)
                 {
                     return false;
                 }
 
                 binding = new ParameterBinding { Kind = BindingKind.Value };
+                return true;
+            }
+
+            if (parameter.HasAttribute(MetaNames.OldValue))
+            {
+                if (!isChangeTemplate || parameter.ParameterType.FullName != targetField.FieldType.FullName)
+                {
+                    return false;
+                }
+
+                binding = new ParameterBinding { Kind = BindingKind.OldValue };
+                return true;
+            }
+
+            if (parameter.HasAttribute(MetaNames.NewValue))
+            {
+                if (!isChangeTemplate || parameter.ParameterType.FullName != targetField.FieldType.FullName)
+                {
+                    return false;
+                }
+
+                binding = new ParameterBinding { Kind = BindingKind.NewValue };
                 return true;
             }
 
@@ -137,6 +294,22 @@ namespace UnityMeta.Weaver
                 }
 
                 binding = new ParameterBinding { Kind = BindingKind.AspectArgument, Index = index };
+                return true;
+            }
+
+            CustomAttribute namedArgument = parameter.FindAttribute(MetaNames.AspectNamedArgument);
+            if (namedArgument != null)
+            {
+                string name = namedArgument.ConstructorArguments[0].Value as string;
+                CustomAttributeArgument value;
+                if (string.IsNullOrEmpty(name) ||
+                    !CecilExtensions.TryGetNamedArgument(aspect, name, out value) ||
+                    !CanEmitConstant(value, parameter.ParameterType))
+                {
+                    return false;
+                }
+
+                binding = new ParameterBinding { Kind = BindingKind.AspectNamedArgument, Name = name };
                 return true;
             }
 
@@ -165,6 +338,7 @@ namespace UnityMeta.Weaver
             if (parameter.HasAttribute(MetaNames.TargetInstance))
             {
                 if (targetFieldDefinition.IsStatic ||
+                    targetFieldDefinition.DeclaringType.IsValueType ||
                     parameter.ParameterType.FullName != targetFieldDefinition.DeclaringType.FullName)
                 {
                     return false;
@@ -217,9 +391,24 @@ namespace UnityMeta.Weaver
             ParameterDefinition parameter,
             CustomAttribute aspect,
             MethodDefinition targetMethod,
+            bool isAfter,
             out ParameterBinding binding)
         {
             binding = null;
+
+            if (parameter.HasAttribute(MetaNames.ReturnValue))
+            {
+                if (!isAfter ||
+                    targetMethod.ReturnType.MetadataType == MetadataType.Void ||
+                    targetMethod.ReturnType.IsByReference ||
+                    parameter.ParameterType.FullName != targetMethod.ReturnType.FullName)
+                {
+                    return false;
+                }
+
+                binding = new ParameterBinding { Kind = BindingKind.ReturnValue };
+                return true;
+            }
 
             CustomAttribute aspectArgument = parameter.FindAttribute(MetaNames.AspectArgument);
             if (aspectArgument != null)
@@ -231,6 +420,22 @@ namespace UnityMeta.Weaver
                 }
 
                 binding = new ParameterBinding { Kind = BindingKind.AspectArgument, Index = index };
+                return true;
+            }
+
+            CustomAttribute namedArgument = parameter.FindAttribute(MetaNames.AspectNamedArgument);
+            if (namedArgument != null)
+            {
+                string name = namedArgument.ConstructorArguments[0].Value as string;
+                CustomAttributeArgument value;
+                if (string.IsNullOrEmpty(name) ||
+                    !CecilExtensions.TryGetNamedArgument(aspect, name, out value) ||
+                    !CanEmitConstant(value, parameter.ParameterType))
+                {
+                    return false;
+                }
+
+                binding = new ParameterBinding { Kind = BindingKind.AspectNamedArgument, Name = name };
                 return true;
             }
 
@@ -323,7 +528,11 @@ namespace UnityMeta.Weaver
                 return false;
             }
 
-            CustomAttributeArgument argument = aspect.ConstructorArguments[index];
+            return CanEmitConstant(aspect.ConstructorArguments[index], targetType);
+        }
+
+        private static bool CanEmitConstant(CustomAttributeArgument argument, TypeReference targetType)
+        {
             if (argument.Value == null)
             {
                 return targetType.MetadataType == MetadataType.String || !targetType.IsValueType;

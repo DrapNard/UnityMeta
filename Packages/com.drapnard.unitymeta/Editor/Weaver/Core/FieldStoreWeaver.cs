@@ -55,13 +55,14 @@ namespace UnityMeta.Weaver
                     continue;
                 }
 
-                List<AspectUse> aspects = AspectDiscovery.GetFieldSetAspects(field);
-                if (aspects.Count == 0)
+                List<AspectUse> setAspects = AspectDiscovery.GetFieldSetAspects(field);
+                List<AspectUse> changeAspects = AspectDiscovery.GetFieldChangeAspects(field);
+                if (setAspects.Count == 0 && changeAspects.Count == 0)
                 {
                     continue;
                 }
 
-                if (RewriteStore(method, instruction, fieldReference, field, aspects))
+                if (RewriteStore(method, instruction, fieldReference, field, setAspects, changeAspects))
                 {
                     modified = true;
                 }
@@ -75,14 +76,16 @@ namespace UnityMeta.Weaver
             Instruction store,
             FieldReference fieldReference,
             FieldDefinition field,
-            List<AspectUse> aspects)
+            List<AspectUse> setAspects,
+            List<AspectUse> changeAspects)
         {
-            var templates = new List<Tuple<AspectUse, BoundTemplate>>();
+            var setTemplates = new List<Tuple<AspectUse, BoundTemplate>>();
+            var changeTemplates = new List<Tuple<AspectUse, BoundTemplate>>();
 
-            foreach (AspectUse aspect in aspects)
+            foreach (AspectUse aspect in setAspects)
             {
                 BoundTemplate template;
-                if (!TrySelectTemplate(aspect, fieldReference, field, out template))
+                if (!TrySelectSetTemplate(aspect, fieldReference, field, out template))
                 {
                     _logger.Error(
                         "No compatible [SetTemplate] found for aspect '" + aspect.AspectType.FullName +
@@ -90,7 +93,21 @@ namespace UnityMeta.Weaver
                     return false;
                 }
 
-                templates.Add(Tuple.Create(aspect, template));
+                setTemplates.Add(Tuple.Create(aspect, template));
+            }
+
+            foreach (AspectUse aspect in changeAspects)
+            {
+                BoundTemplate template;
+                if (!TrySelectChangeTemplate(aspect, fieldReference, field, out template))
+                {
+                    _logger.Error(
+                        "No compatible [ChangeTemplate] found for aspect '" + aspect.AspectType.FullName +
+                        "' on field '" + field.FullName + "'.");
+                    return false;
+                }
+
+                changeTemplates.Add(Tuple.Create(aspect, template));
             }
 
             MethodBody body = method.Body;
@@ -100,15 +117,28 @@ namespace UnityMeta.Weaver
             var valueLocal = new VariableDefinition(_module.ImportReference(fieldReference.FieldType));
             body.Variables.Add(valueLocal);
 
+            VariableDefinition oldValueLocal = null;
+            if (changeTemplates.Count > 0)
+            {
+                oldValueLocal = new VariableDefinition(_module.ImportReference(fieldReference.FieldType));
+                body.Variables.Add(oldValueLocal);
+            }
+
             VariableDefinition instanceLocal = null;
             if (!field.IsStatic)
             {
-                instanceLocal = new VariableDefinition(_module.ImportReference(fieldReference.DeclaringType));
+                TypeReference declaringType = _module.ImportReference(fieldReference.DeclaringType);
+                TypeReference instanceType = field.DeclaringType.IsValueType
+                    ? (TypeReference)new ByReferenceType(declaringType)
+                    : declaringType;
+
+                instanceLocal = new VariableDefinition(instanceType);
                 body.Variables.Add(instanceLocal);
             }
 
-            // Reuse the original instruction as the first operation so any
-            // branch targeting the old stfld/stsfld still enters the transform.
+            // Original stack is [instance?, value]. Reuse the original store
+            // instruction as the first local store so any branch that targeted the
+            // old stfld/stsfld still enters the complete transformation sequence.
             store.OpCode = OpCodes.Stloc;
             store.Operand = valueLocal;
 
@@ -124,7 +154,22 @@ namespace UnityMeta.Weaver
                 il.InsertBefore(anchor, il.Create(OpCodes.Stloc, instanceLocal));
             }
 
-            foreach (Tuple<AspectUse, BoundTemplate> item in templates)
+            if (oldValueLocal != null)
+            {
+                if (field.IsStatic)
+                {
+                    il.InsertBefore(anchor, il.Create(OpCodes.Ldsfld, _module.ImportReference(fieldReference)));
+                }
+                else
+                {
+                    il.InsertBefore(anchor, il.Create(OpCodes.Ldloc, instanceLocal));
+                    il.InsertBefore(anchor, il.Create(OpCodes.Ldfld, _module.ImportReference(fieldReference)));
+                }
+
+                il.InsertBefore(anchor, il.Create(OpCodes.Stloc, oldValueLocal));
+            }
+
+            foreach (Tuple<AspectUse, BoundTemplate> item in setTemplates)
             {
                 EmitFieldTemplateCall(
                     il,
@@ -133,6 +178,8 @@ namespace UnityMeta.Weaver
                     item.Item2,
                     field,
                     valueLocal,
+                    null,
+                    null,
                     instanceLocal);
                 il.InsertBefore(anchor, il.Create(OpCodes.Stloc, valueLocal));
             }
@@ -147,10 +194,33 @@ namespace UnityMeta.Weaver
                 anchor,
                 il.Create(field.IsStatic ? OpCodes.Stsfld : OpCodes.Stfld, _module.ImportReference(fieldReference)));
 
+            if (changeTemplates.Count > 0)
+            {
+                Instruction skipChangeTemplates = il.Create(OpCodes.Nop);
+                EmitEqualityComparison(il, anchor, fieldReference.FieldType, oldValueLocal, valueLocal);
+                il.InsertBefore(anchor, il.Create(OpCodes.Brtrue, skipChangeTemplates));
+
+                foreach (Tuple<AspectUse, BoundTemplate> item in changeTemplates)
+                {
+                    EmitFieldTemplateCall(
+                        il,
+                        anchor,
+                        item.Item1,
+                        item.Item2,
+                        field,
+                        valueLocal,
+                        oldValueLocal,
+                        valueLocal,
+                        instanceLocal);
+                }
+
+                il.InsertBefore(anchor, skipChangeTemplates);
+            }
+
             return true;
         }
 
-        private bool TrySelectTemplate(
+        private bool TrySelectSetTemplate(
             AspectUse aspect,
             FieldReference fieldReference,
             FieldDefinition field,
@@ -192,6 +262,48 @@ namespace UnityMeta.Weaver
             return selected != null;
         }
 
+        private bool TrySelectChangeTemplate(
+            AspectUse aspect,
+            FieldReference fieldReference,
+            FieldDefinition field,
+            out BoundTemplate selected)
+        {
+            selected = null;
+
+            foreach (MethodDefinition method in aspect.AspectType.Methods)
+            {
+                if (!method.HasAttribute(MetaNames.ChangeTemplate))
+                {
+                    continue;
+                }
+
+                BoundTemplate candidate;
+                if (!TemplateBinding.TryBindFieldChangeTemplate(
+                        _module,
+                        method,
+                        aspect.Attribute,
+                        fieldReference,
+                        field,
+                        out candidate))
+                {
+                    continue;
+                }
+
+                if (selected != null)
+                {
+                    _logger.Error(
+                        "Aspect '" + aspect.AspectType.FullName + "' has more than one compatible [ChangeTemplate] " +
+                        "for field '" + field.FullName + "'.");
+                    selected = null;
+                    return false;
+                }
+
+                selected = candidate;
+            }
+
+            return selected != null;
+        }
+
         private void EmitFieldTemplateCall(
             ILProcessor il,
             Instruction anchor,
@@ -199,6 +311,8 @@ namespace UnityMeta.Weaver
             BoundTemplate template,
             FieldDefinition targetField,
             VariableDefinition valueLocal,
+            VariableDefinition oldValueLocal,
+            VariableDefinition newValueLocal,
             VariableDefinition instanceLocal)
         {
             foreach (ParameterBinding binding in template.Bindings)
@@ -208,8 +322,17 @@ namespace UnityMeta.Weaver
                     case BindingKind.Value:
                         il.InsertBefore(anchor, il.Create(OpCodes.Ldloc, valueLocal));
                         break;
+                    case BindingKind.OldValue:
+                        il.InsertBefore(anchor, il.Create(OpCodes.Ldloc, oldValueLocal));
+                        break;
+                    case BindingKind.NewValue:
+                        il.InsertBefore(anchor, il.Create(OpCodes.Ldloc, newValueLocal));
+                        break;
                     case BindingKind.AspectArgument:
                         ILValueEmitter.EmitAspectArgument(il, anchor, aspect.Attribute, binding.Index);
+                        break;
+                    case BindingKind.AspectNamedArgument:
+                        ILValueEmitter.EmitAspectNamedArgument(il, anchor, aspect.Attribute, binding.Name);
                         break;
                     case BindingKind.TargetMemberName:
                         il.InsertBefore(anchor, il.Create(OpCodes.Ldstr, targetField.Name));
@@ -238,6 +361,36 @@ namespace UnityMeta.Weaver
             }
 
             il.InsertBefore(anchor, il.Create(OpCodes.Call, template.Method));
+        }
+
+        private void EmitEqualityComparison(
+            ILProcessor il,
+            Instruction anchor,
+            TypeReference valueType,
+            VariableDefinition oldValueLocal,
+            VariableDefinition newValueLocal)
+        {
+            TypeReference importedValueType = _module.ImportReference(valueType);
+            TypeReference comparerOpenType = _module.ImportReference(typeof(EqualityComparer<>));
+            var comparerType = new GenericInstanceType(comparerOpenType);
+            comparerType.GenericArguments.Add(importedValueType);
+
+            var getDefault = new MethodReference("get_Default", comparerType, comparerType)
+            {
+                HasThis = false
+            };
+
+            var equals = new MethodReference("Equals", _module.TypeSystem.Boolean, comparerType)
+            {
+                HasThis = true
+            };
+            equals.Parameters.Add(new ParameterDefinition(importedValueType));
+            equals.Parameters.Add(new ParameterDefinition(importedValueType));
+
+            il.InsertBefore(anchor, il.Create(OpCodes.Call, getDefault));
+            il.InsertBefore(anchor, il.Create(OpCodes.Ldloc, oldValueLocal));
+            il.InsertBefore(anchor, il.Create(OpCodes.Ldloc, newValueLocal));
+            il.InsertBefore(anchor, il.Create(OpCodes.Callvirt, equals));
         }
     }
 }

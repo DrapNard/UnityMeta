@@ -81,6 +81,34 @@ namespace UnityMeta.Weaver
             return false;
         }
 
+
+        public static bool TryGetNamedArgument(
+            CustomAttribute attribute,
+            string name,
+            out CustomAttributeArgument argument)
+        {
+            foreach (CustomAttributeNamedArgument property in attribute.Properties)
+            {
+                if (property.Name == name)
+                {
+                    argument = property.Argument;
+                    return true;
+                }
+            }
+
+            foreach (CustomAttributeNamedArgument field in attribute.Fields)
+            {
+                if (field.Name == name)
+                {
+                    argument = field.Argument;
+                    return true;
+                }
+            }
+
+            argument = default(CustomAttributeArgument);
+            return false;
+        }
+
         public static int GetAspectOrder(CustomAttribute attribute)
         {
             foreach (CustomAttributeNamedArgument property in attribute.Properties)

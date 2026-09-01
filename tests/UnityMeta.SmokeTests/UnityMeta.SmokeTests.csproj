@@ -9,6 +9,7 @@
   <ItemGroup>
     <ProjectReference Include="../../src/UnityMeta.Runtime/UnityMeta.Runtime.csproj" />
     <ProjectReference Include="../../src/UnityMeta.Weaver.Core/UnityMeta.Weaver.Core.csproj" />
+    <ProjectReference Include="../../compiler/UnityMeta.Compiler/UnityMeta.Compiler.csproj" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="3.8.0" />
   </ItemGroup>
 </Project>

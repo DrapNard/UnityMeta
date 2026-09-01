@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "com.drapnard.unitymeta": "file:../../../Packages/com.drapnard.unitymeta",
+    "com.unity.test-framework": "1.1.33"
+  }
+}

@@ -1,4 +1,5 @@
 using System;
+using System.Reflection;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
 
@@ -12,7 +13,22 @@ namespace UnityMeta.Weaver
             CustomAttribute aspect,
             int index)
         {
-            CustomAttributeArgument argument = aspect.ConstructorArguments[index];
+            EmitConstant(il, anchor, aspect.ConstructorArguments[index]);
+        }
+
+        public static void EmitAspectNamedArgument(
+            ILProcessor il,
+            Instruction anchor,
+            CustomAttribute aspect,
+            string name)
+        {
+            CustomAttributeArgument argument;
+            if (!CecilExtensions.TryGetNamedArgument(aspect, name, out argument))
+            {
+                throw new InvalidOperationException(
+                    "Aspect named argument '" + name + "' was validated but is no longer available.");
+            }
+
             EmitConstant(il, anchor, argument);
         }
 
@@ -23,6 +39,19 @@ namespace UnityMeta.Weaver
             if (value == null)
             {
                 il.InsertBefore(anchor, il.Create(OpCodes.Ldnull));
+                return;
+            }
+
+            if (argument.Type.FullName == "System.Type" && value is TypeReference)
+            {
+                EmitType(il, anchor, (TypeReference)value);
+                return;
+            }
+
+            ArrayType arrayType = argument.Type as ArrayType;
+            if (arrayType != null && value is CustomAttributeArgument[])
+            {
+                EmitArray(il, anchor, arrayType, (CustomAttributeArgument[])value);
                 return;
             }
 
@@ -60,8 +89,6 @@ namespace UnityMeta.Weaver
                     il.InsertBefore(anchor, il.Create(OpCodes.Ldstr, (string)value));
                     return;
                 default:
-                    // CustomAttributeArgument.Type can be an enum rather than its
-                    // underlying primitive type.
                     TypeDefinition resolved = null;
                     try
                     {
@@ -82,6 +109,47 @@ namespace UnityMeta.Weaver
 
                     throw new NotSupportedException(
                         "UnityMeta cannot emit aspect argument type '" + argument.Type.FullName + "' yet.");
+            }
+        }
+
+        private static void EmitType(ILProcessor il, Instruction anchor, TypeReference type)
+        {
+            ModuleDefinition module = il.Body.Method.Module;
+            il.InsertBefore(anchor, il.Create(OpCodes.Ldtoken, module.ImportReference(type)));
+
+            MethodInfo method = typeof(Type).GetMethod(
+                "GetTypeFromHandle",
+                BindingFlags.Public | BindingFlags.Static,
+                null,
+                new[] { typeof(RuntimeTypeHandle) },
+                null);
+
+            if (method == null)
+            {
+                throw new InvalidOperationException("System.Type.GetTypeFromHandle could not be resolved.");
+            }
+
+            il.InsertBefore(anchor, il.Create(OpCodes.Call, module.ImportReference(method)));
+        }
+
+        private static void EmitArray(
+            ILProcessor il,
+            Instruction anchor,
+            ArrayType arrayType,
+            CustomAttributeArgument[] elements)
+        {
+            ModuleDefinition module = il.Body.Method.Module;
+            TypeReference elementType = module.ImportReference(arrayType.ElementType);
+
+            il.InsertBefore(anchor, il.Create(OpCodes.Ldc_I4, elements.Length));
+            il.InsertBefore(anchor, il.Create(OpCodes.Newarr, elementType));
+
+            for (int i = 0; i < elements.Length; i++)
+            {
+                il.InsertBefore(anchor, il.Create(OpCodes.Dup));
+                il.InsertBefore(anchor, il.Create(OpCodes.Ldc_I4, i));
+                EmitConstant(il, anchor, elements[i]);
+                il.InsertBefore(anchor, il.Create(OpCodes.Stelem_Any, elementType));
             }
         }
 

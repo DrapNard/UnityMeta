@@ -12,6 +12,25 @@ namespace UnityMeta
     }
 
     /// <summary>
+    /// Marks a static method as a field-read transformation template.
+    /// The method must return the field type.
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
+    public sealed class GetTemplateAttribute : Attribute
+    {
+    }
+
+    /// <summary>
+    /// Marks a static void method as a field-change notification template.
+    /// It runs after the final value has been stored and only when the previous
+    /// and new values differ.
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
+    public sealed class ChangeTemplateAttribute : Attribute
+    {
+    }
+
+    /// <summary>
     /// Marks a static void method to run at method entry.
     /// </summary>
     [AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
@@ -20,7 +39,7 @@ namespace UnityMeta
     }
 
     /// <summary>
-    /// Marks a static void method to run immediately before each return.
+    /// Marks a static void method to run immediately before each normal return.
     /// </summary>
     [AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
     public sealed class AfterTemplateAttribute : Attribute
