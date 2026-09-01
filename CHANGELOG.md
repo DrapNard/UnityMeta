@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.0-alpha.2 - 2026-09-01
+
+### Fixed
+
+- Field-change equality IL now calls the C#-compiled `MetaRuntimeServices.AreEqual<T>` helper instead of hand-building a generic BCL `MemberRef`, preventing `MissingMethodException` on .NET 8 and improving runtime portability.
+- Roslyn analyzer release-tracking files now use the canonical format expected by RS2007/RS2008.
+
 ## 0.2.0-alpha.1 - 2026-09-01
 
 ### Added

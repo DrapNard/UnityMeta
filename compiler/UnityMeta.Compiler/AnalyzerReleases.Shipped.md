@@ -1,9 +1,12 @@
+; Shipped analyzer releases
+; https://github.com/dotnet/roslyn-analyzers/blob/master/src/Microsoft.CodeAnalysis.Analyzers/ReleaseTrackingAnalyzers.Help.md
+
 ## Release 0.2.0
 
 ### New Rules
 
 Rule ID | Category | Severity | Notes
---------|----------|----------|------
+--------|----------|----------|--------------------
 UMETA001 | UnityMeta | Error | Template methods must be static.
 UMETA002 | UnityMeta | Error | Field get/set transform templates must return a value.
 UMETA003 | UnityMeta | Error | Observer templates must return void.

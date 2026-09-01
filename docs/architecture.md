@@ -101,7 +101,7 @@ Multiple set aspects are ordered by `MetaAspectAttribute.Order` and chained.
 
 `FieldChangeAspectAttribute` is processed in the same field-store rewrite. The weaver
 captures the old field value before transformations, stores the final transformed value,
-then compares old/final values with `EqualityComparer<T>.Default`. Compatible
+then compares old/final values with `EqualityComparer<T>.Default` through the runtime helper. Compatible
 `[ChangeTemplate]` calls execute only when the values differ. This makes OnChange-style
 metacode a framework primitive rather than a hard-coded gameplay attribute.
 

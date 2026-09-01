@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.0-alpha.2
+
+- Fixed field-change equality weaving on modern .NET/CLR runtimes by routing comparisons through `MetaRuntimeServices.AreEqual<T>`.
+- Fixed Roslyn analyzer release-tracking metadata format.
+
 ## 0.2.0-alpha.1
 
 - Added generic field-get/read transformations for ordinary field loads.

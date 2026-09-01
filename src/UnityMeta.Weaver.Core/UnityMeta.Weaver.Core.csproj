@@ -10,6 +10,7 @@
 
   <ItemGroup>
     <PackageReference Include="Mono.Cecil" Version="0.11.5" />
+    <ProjectReference Include="../UnityMeta.Runtime/UnityMeta.Runtime.csproj" />
   </ItemGroup>
 
   <ItemGroup>

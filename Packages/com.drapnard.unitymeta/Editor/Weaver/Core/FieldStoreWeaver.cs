@@ -371,26 +371,21 @@ namespace UnityMeta.Weaver
             VariableDefinition newValueLocal)
         {
             TypeReference importedValueType = _module.ImportReference(valueType);
-            TypeReference comparerOpenType = _module.ImportReference(typeof(EqualityComparer<>));
-            var comparerType = new GenericInstanceType(comparerOpenType);
-            comparerType.GenericArguments.Add(importedValueType);
 
-            var getDefault = new MethodReference("get_Default", comparerType, comparerType)
-            {
-                HasThis = false
-            };
+            // Do not hand-craft a MemberRef to EqualityComparer<T>.Default here.
+            // The exact generic member signature is runtime/BCL-sensitive and a
+            // syntactically valid Cecil reference can still fail at runtime with
+            // MissingMethodException. Instead, call a normal C#-compiled generic
+            // runtime helper and let the C# compiler own the BCL call signature.
+            var helperDefinition = typeof(UnityMeta.MetaRuntimeServices).GetMethod(
+                nameof(UnityMeta.MetaRuntimeServices.AreEqual));
+            MethodReference importedHelper = _module.ImportReference(helperDefinition);
+            var closedHelper = new GenericInstanceMethod(importedHelper);
+            closedHelper.GenericArguments.Add(importedValueType);
 
-            var equals = new MethodReference("Equals", _module.TypeSystem.Boolean, comparerType)
-            {
-                HasThis = true
-            };
-            equals.Parameters.Add(new ParameterDefinition(importedValueType));
-            equals.Parameters.Add(new ParameterDefinition(importedValueType));
-
-            il.InsertBefore(anchor, il.Create(OpCodes.Call, getDefault));
             il.InsertBefore(anchor, il.Create(OpCodes.Ldloc, oldValueLocal));
             il.InsertBefore(anchor, il.Create(OpCodes.Ldloc, newValueLocal));
-            il.InsertBefore(anchor, il.Create(OpCodes.Callvirt, equals));
+            il.InsertBefore(anchor, il.Create(OpCodes.Call, closedHelper));
         }
     }
 }

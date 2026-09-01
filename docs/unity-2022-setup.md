@@ -9,7 +9,7 @@ UnityEngine reference.
 ## Preferred: published precompiled UPM tag
 
 ```text
-https://github.com/DrapNard/UnityMeta.git#upm-v0.2.0-alpha.1
+https://github.com/DrapNard/UnityMeta.git#upm-v0.2.0-alpha.2
 ```
 
 This package-root tag includes the Roslyn analyzer/source-generator DLL built by release CI.
@@ -41,7 +41,7 @@ backend itself does not require the companion.
 Unity Package Manager supports a `path` query for packages stored below a repository root:
 
 ```text
-https://github.com/DrapNard/UnityMeta.git?path=/Packages/com.drapnard.unitymeta#v0.2.0-alpha.1
+https://github.com/DrapNard/UnityMeta.git?path=/Packages/com.drapnard.unitymeta#v0.2.0-alpha.2
 ```
 
 This source tag does not contain generated binaries committed to Git, so prefer `upm-v*`

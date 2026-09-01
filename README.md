@@ -8,7 +8,7 @@ UnityMeta itself is intentionally **not a catalog of gameplay attributes**. `Cla
 `OnChange`, `Log`, and similar features are samples showing how a Unity project or another
 package can author its own metacode.
 
-> Current version: **0.2.0-alpha.1**. The architecture is usable; the API is still allowed
+> Current version: **0.2.0-alpha.2**. The architecture is usable; the API is still allowed
 > to evolve before 1.0.
 
 ## Architecture
@@ -131,7 +131,7 @@ For a source checkout, build the optional Roslyn companion with:
 A tagged release builds a precompiled UPM branch. Install an exact release with:
 
 ```text
-https://github.com/DrapNard/UnityMeta.git#upm-v0.2.0-alpha.1
+https://github.com/DrapNard/UnityMeta.git#upm-v0.2.0-alpha.2
 ```
 
 The source-repository package is also addressable with Unity's Git `path` query, but the
