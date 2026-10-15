@@ -58,7 +58,7 @@ namespace UnityMeta.Weaver
         {
             boundTemplate = null;
 
-            if (!template.IsStatic || !template.IsPublic ||
+            if (!template.IsStatic || !template.IsPublic || template.HasGenericParameters ||
                 template.ReturnType.FullName != targetField.FieldType.FullName)
             {
                 return false;
@@ -76,6 +76,7 @@ namespace UnityMeta.Weaver
                         aspect,
                         targetField,
                         targetFieldDefinition,
+                        false,
                         false,
                         out binding))
                 {
@@ -109,7 +110,7 @@ namespace UnityMeta.Weaver
         {
             boundTemplate = null;
 
-            if (!template.IsStatic || !template.IsPublic ||
+            if (!template.IsStatic || !template.IsPublic || template.HasGenericParameters ||
                 template.ReturnType.FullName != targetField.FieldType.FullName)
             {
                 return false;
@@ -127,6 +128,7 @@ namespace UnityMeta.Weaver
                         aspect,
                         targetField,
                         targetFieldDefinition,
+                        false,
                         false,
                         out binding))
                 {
@@ -161,11 +163,12 @@ namespace UnityMeta.Weaver
             boundTemplate = null;
 
             if (!template.IsStatic || !template.IsPublic ||
-                template.ReturnType.MetadataType != MetadataType.Void)
+                template.ReturnType.MetadataType != MetadataType.Void || template.GenericParameters.Count > 1)
             {
                 return false;
             }
 
+            bool bindsGenericFieldValue = false;
             var bindings = new ParameterBinding[template.Parameters.Count];
 
             for (int i = 0; i < template.Parameters.Count; i++)
@@ -179,6 +182,7 @@ namespace UnityMeta.Weaver
                         targetField,
                         targetFieldDefinition,
                         true,
+                        template.GenericParameters.Count == 1,
                         out binding))
                 {
                     return false;
@@ -189,7 +193,18 @@ namespace UnityMeta.Weaver
                     return false;
                 }
 
+                if ((binding.Kind == BindingKind.OldValue || binding.Kind == BindingKind.NewValue) &&
+                    parameter.ParameterType is GenericParameter)
+                {
+                    bindsGenericFieldValue = true;
+                }
+
                 bindings[i] = binding;
+            }
+
+            if (template.GenericParameters.Count == 1 && !bindsGenericFieldValue)
+            {
+                return false;
             }
 
             boundTemplate = new BoundTemplate
@@ -211,7 +226,7 @@ namespace UnityMeta.Weaver
         {
             boundTemplate = null;
 
-            if (!template.IsStatic || !template.IsPublic ||
+            if (!template.IsStatic || !template.IsPublic || template.HasGenericParameters ||
                 template.ReturnType.MetadataType != MetadataType.Void)
             {
                 return false;
@@ -247,6 +262,7 @@ namespace UnityMeta.Weaver
             FieldReference targetField,
             FieldDefinition targetFieldDefinition,
             bool isChangeTemplate,
+            bool allowGenericFieldValue,
             out ParameterBinding binding)
         {
             binding = null;
@@ -264,7 +280,8 @@ namespace UnityMeta.Weaver
 
             if (parameter.HasAttribute(MetaNames.OldValue))
             {
-                if (!isChangeTemplate || parameter.ParameterType.FullName != targetField.FieldType.FullName)
+                if (!isChangeTemplate || !MatchesFieldValueType(
+                        parameter.ParameterType, targetField.FieldType, allowGenericFieldValue))
                 {
                     return false;
                 }
@@ -275,7 +292,8 @@ namespace UnityMeta.Weaver
 
             if (parameter.HasAttribute(MetaNames.NewValue))
             {
-                if (!isChangeTemplate || parameter.ParameterType.FullName != targetField.FieldType.FullName)
+                if (!isChangeTemplate || !MatchesFieldValueType(
+                        parameter.ParameterType, targetField.FieldType, allowGenericFieldValue))
                 {
                     return false;
                 }
@@ -492,6 +510,21 @@ namespace UnityMeta.Weaver
             }
 
             return false;
+        }
+
+        private static bool MatchesFieldValueType(
+            TypeReference parameterType,
+            TypeReference fieldType,
+            bool allowGenericFieldValue)
+        {
+            if (parameterType.FullName == fieldType.FullName)
+            {
+                return true;
+            }
+
+            GenericParameter genericParameter = parameterType as GenericParameter;
+            return allowGenericFieldValue && genericParameter != null &&
+                   genericParameter.Type == GenericParameterType.Method && genericParameter.Position == 0;
         }
 
         private static FieldDefinition FindField(TypeDefinition type, string name)

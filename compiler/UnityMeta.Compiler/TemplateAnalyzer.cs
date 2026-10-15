@@ -66,8 +66,8 @@ namespace UnityMeta.Compiler
 
         private static readonly DiagnosticDescriptor GenericTemplate = new DiagnosticDescriptor(
             "UMETA008",
-            "Generic templates are not supported yet",
-            "Template method '{0}' cannot be generic in the current UnityMeta backend",
+            "This generic template shape is not supported",
+            "Generic template method '{0}' must be a single-type field-change template bound through [OldValue] or [NewValue]",
             "UnityMeta",
             DiagnosticSeverity.Error,
             true);
@@ -147,7 +147,7 @@ namespace UnityMeta.Compiler
                 context.ReportDiagnostic(Diagnostic.Create(StaticTemplate, location, method.Name));
             }
 
-            if (method.IsGenericMethod)
+            if (method.IsGenericMethod && !IsSupportedGenericFieldChangeTemplate(method, change))
             {
                 context.ReportDiagnostic(Diagnostic.Create(GenericTemplate, location, method.Name));
             }
@@ -201,6 +201,35 @@ namespace UnityMeta.Compiler
                         Diagnostic.Create(InvalidBinding, parameterLocation, ShortName(binding), templateKind));
                 }
             }
+        }
+
+        private static bool IsSupportedGenericFieldChangeTemplate(IMethodSymbol method, bool isChangeTemplate)
+        {
+            if (!isChangeTemplate || method.TypeParameters.Length != 1)
+            {
+                return false;
+            }
+
+            ITypeParameterSymbol fieldValueType = method.TypeParameters[0];
+            bool bindsOldValue = false;
+            bool bindsNewValue = false;
+
+            foreach (IParameterSymbol parameter in method.Parameters)
+            {
+                if (!SymbolEqualityComparer.Default.Equals(parameter.Type, fieldValueType))
+                {
+                    continue;
+                }
+
+                foreach (AttributeData attribute in parameter.GetAttributes())
+                {
+                    string? name = attribute.AttributeClass?.ToDisplayString();
+                    if (name == "UnityMeta.OldValueAttribute") bindsOldValue = true;
+                    if (name == "UnityMeta.NewValueAttribute") bindsNewValue = true;
+                }
+            }
+
+            return bindsOldValue || bindsNewValue;
         }
 
         private static List<string> GetBindings(IParameterSymbol parameter)

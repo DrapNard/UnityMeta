@@ -37,15 +37,15 @@ namespace UnityMeta.IntegrationTests
     public sealed class TestChangeAttribute : FieldChangeAspectAttribute
     {
         [ChangeTemplate]
-        public static void Changed(
+        public static void Changed<T>(
             [TargetInstance] object target,
-            [OldValue] int oldValue,
-            [NewValue] int newValue)
+            [OldValue] T oldValue,
+            [NewValue] T newValue)
         {
             var probe = (Probe)target;
             probe.ChangeCount++;
-            probe.LastOld = oldValue;
-            probe.LastNew = newValue;
+            probe.LastOld = (int)(object)oldValue;
+            probe.LastNew = (int)(object)newValue;
         }
     }
 

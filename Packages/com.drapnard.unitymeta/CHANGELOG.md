@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.2.0-alpha.7
+
+### Added
+
+- Support one generic type parameter on field-change templates, closed to the target field type, so reusable aspects preserve strongly typed old/new values.
+
+### Fixed
+
+- Add regression coverage for generic field-change templates and generic target instances in standalone and Unity integration fixtures.
+
+
 ## 0.2.0-alpha.6
 
 ### Fixed

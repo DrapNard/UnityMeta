@@ -9,10 +9,10 @@ public sealed class OnHealthChangedAttribute : FieldChangeAspectAttribute
     public string Channel { get; set; } = string.Empty;
 
     [ChangeTemplate]
-    public static void Changed(
+    public static void Changed<T>(
         [TargetInstance] object target,
-        [OldValue] int oldValue,
-        [NewValue] int newValue,
+        [OldValue] T oldValue,
+        [NewValue] T newValue,
         [AspectNamedArgument("Channel")] string channel)
     {
         ((OnChangeExample)target).HandleHealthChanged(oldValue, newValue, channel);

@@ -55,16 +55,16 @@ public sealed class TrackChangeAttribute : FieldChangeAspectAttribute
     public string Tag { get; set; } = string.Empty;
 
     [ChangeTemplate]
-    public static void Changed(
+    public static void Changed<T>(
         [TargetInstance] object target,
-        [OldValue] int oldValue,
-        [NewValue] int newValue,
+        [OldValue] T oldValue,
+        [NewValue] T newValue,
         [AspectNamedArgument(""Tag"")] string tag)
     {
         var combat = (Combat)target;
         combat.ChangeCount++;
-        combat.LastOldValue = oldValue;
-        combat.LastNewValue = newValue;
+        combat.LastOldValue = (int)(object)oldValue;
+        combat.LastNewValue = (int)(object)newValue;
         combat.LastTag = tag;
     }
 }

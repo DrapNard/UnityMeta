@@ -177,6 +177,7 @@ namespace UnityMeta.Weaver
                     item.Item1,
                     item.Item2,
                     field,
+                    fieldReference.FieldType,
                     valueLocal,
                     null,
                     null,
@@ -208,6 +209,7 @@ namespace UnityMeta.Weaver
                         item.Item1,
                         item.Item2,
                         field,
+                        fieldReference.FieldType,
                         valueLocal,
                         oldValueLocal,
                         valueLocal,
@@ -310,6 +312,7 @@ namespace UnityMeta.Weaver
             AspectUse aspect,
             BoundTemplate template,
             FieldDefinition targetField,
+            TypeReference targetFieldType,
             VariableDefinition valueLocal,
             VariableDefinition oldValueLocal,
             VariableDefinition newValueLocal,
@@ -360,7 +363,19 @@ namespace UnityMeta.Weaver
                 }
             }
 
-            il.InsertBefore(anchor, il.Create(OpCodes.Call, template.Method));
+            MethodReference templateMethod = template.Method;
+            if (templateMethod.HasGenericParameters)
+            {
+                var closedTemplate = new GenericInstanceMethod(templateMethod);
+                foreach (GenericParameter genericParameter in templateMethod.GenericParameters)
+                {
+                    closedTemplate.GenericArguments.Add(_module.ImportReference(targetFieldType));
+                }
+
+                templateMethod = closedTemplate;
+            }
+
+            il.InsertBefore(anchor, il.Create(OpCodes.Call, templateMethod));
         }
 
         private void EmitEqualityComparison(
