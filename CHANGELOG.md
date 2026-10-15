@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.0-alpha.8
+
+### Fixed
+
+- Emit `typeof(...)` method-aspect arguments through the target module's core library, preventing Unity Mono assemblies from acquiring an invalid `System.Private.CoreLib` reference.
+- Document the supported generic field-change template shape and keep other generic aspect templates explicitly unsupported.
+
 ## 0.2.0-alpha.7
 
 ### Added

@@ -1,5 +1,4 @@
 using System;
-using System.Reflection;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
 
@@ -117,19 +116,24 @@ namespace UnityMeta.Weaver
             ModuleDefinition module = il.Body.Method.Module;
             il.InsertBefore(anchor, il.Create(OpCodes.Ldtoken, module.ImportReference(type)));
 
-            MethodInfo method = typeof(Type).GetMethod(
-                "GetTypeFromHandle",
-                BindingFlags.Public | BindingFlags.Static,
-                null,
-                new[] { typeof(RuntimeTypeHandle) },
-                null);
-
-            if (method == null)
+            // Resolve the runtime API through the target module's core library.
+            // Reflecting over the weaver host's System.Type would import the
+            // host runtime (System.Private.CoreLib on .NET 8) into Unity's
+            // post-processed assemblies, which use Unity's own core library.
+            IMetadataScope coreLibrary = module.TypeSystem.CoreLibrary;
+            var systemType = new TypeReference("System", "Type", module, coreLibrary);
+            var runtimeTypeHandle = new TypeReference("System", "RuntimeTypeHandle", module, coreLibrary)
             {
-                throw new InvalidOperationException("System.Type.GetTypeFromHandle could not be resolved.");
-            }
-
-            il.InsertBefore(anchor, il.Create(OpCodes.Call, module.ImportReference(method)));
+                IsValueType = true
+            };
+            var getTypeFromHandle = new MethodReference("GetTypeFromHandle", systemType, systemType)
+            {
+                HasThis = false,
+                ExplicitThis = false,
+                CallingConvention = MethodCallingConvention.Default
+            };
+            getTypeFromHandle.Parameters.Add(new ParameterDefinition(runtimeTypeHandle));
+            il.InsertBefore(anchor, il.Create(OpCodes.Call, getTypeFromHandle));
         }
 
         private static void EmitArray(

@@ -15,7 +15,7 @@ UnityMeta 0.2 alpha is a usable architecture preview, not Metalama feature parit
 - Dynamic field binding supports fields, not properties/indexers.
 - Named aspect arguments must be explicitly supplied at the attribute use site.
 - Attribute metadata does not yet cover every legal CLR custom-attribute edge case.
-- Generic template methods are intentionally rejected by the current backend.
+- Generic template methods are restricted: one generic value parameter is supported only for field-change templates when it binds `[OldValue]` or `[NewValue]`. Generic field-get, field-set, and method templates remain unsupported.
 - No dependency/revalidation graph yet. A dynamic bound changing does not automatically
   reassign every dependent field; change aspects can be used to build project-level behavior
   until dependency primitives land.

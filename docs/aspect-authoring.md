@@ -84,6 +84,8 @@ public sealed class HealthChangedAttribute : FieldChangeAspectAttribute
 }
 ```
 
+A change template may use one generic type parameter for its old/new field value. The weaver closes that method over the target field type. Generic templates are not supported for field-get, field-set, or method aspects.
+
 Change templates:
 
 - run **after** field-set transformations and the final store;
@@ -151,7 +153,7 @@ low-to-high after the final store. Method before templates run low-to-high; afte
 ## Analyzer rules
 
 The Roslyn companion reports `UMETA001`-`UMETA009` for invalid template shape, role,
-bindings, base aspect type, generic templates, or non-public template methods. Runtime
+bindings, base aspect type, unsupported generic templates, or non-public template methods. Runtime
 bindability against each concrete target is still validated by the IL weaver.
 
 ## Runtime cost
