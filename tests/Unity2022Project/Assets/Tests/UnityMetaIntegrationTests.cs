@@ -38,13 +38,14 @@ namespace UnityMeta.IntegrationTests
     {
         [ChangeTemplate]
         public static void Changed(
-            [TargetInstance] Probe target,
+            [TargetInstance] object target,
             [OldValue] int oldValue,
             [NewValue] int newValue)
         {
-            target.ChangeCount++;
-            target.LastOld = oldValue;
-            target.LastNew = newValue;
+            var probe = (Probe)target;
+            probe.ChangeCount++;
+            probe.LastOld = oldValue;
+            probe.LastNew = newValue;
         }
     }
 

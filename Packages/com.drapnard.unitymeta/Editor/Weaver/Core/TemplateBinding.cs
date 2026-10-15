@@ -337,9 +337,13 @@ namespace UnityMeta.Weaver
 
             if (parameter.HasAttribute(MetaNames.TargetInstance))
             {
+                bool acceptsObject = parameter.ParameterType.MetadataType == MetadataType.Object;
+                bool acceptsExactDeclaringType =
+                    parameter.ParameterType.FullName == targetFieldDefinition.DeclaringType.FullName;
+
                 if (targetFieldDefinition.IsStatic ||
                     targetFieldDefinition.DeclaringType.IsValueType ||
-                    parameter.ParameterType.FullName != targetFieldDefinition.DeclaringType.FullName)
+                    (!acceptsObject && !acceptsExactDeclaringType))
                 {
                     return false;
                 }

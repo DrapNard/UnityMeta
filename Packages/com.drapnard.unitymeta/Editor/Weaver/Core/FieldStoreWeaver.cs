@@ -372,15 +372,38 @@ namespace UnityMeta.Weaver
         {
             TypeReference importedValueType = _module.ImportReference(valueType);
 
-            // Do not hand-craft a MemberRef to EqualityComparer<T>.Default here.
-            // The exact generic member signature is runtime/BCL-sensitive and a
-            // syntactically valid Cecil reference can still fail at runtime with
-            // MissingMethodException. Instead, call a normal C#-compiled generic
-            // runtime helper and let the C# compiler own the BCL call signature.
-            var helperDefinition = typeof(UnityMeta.MetaRuntimeServices).GetMethod(
-                nameof(UnityMeta.MetaRuntimeServices.AreEqual));
-            MethodReference importedHelper = _module.ImportReference(helperDefinition);
-            var closedHelper = new GenericInstanceMethod(importedHelper);
+            // Build the runtime helper reference from the target assembly's own
+            // references. Importing MethodInfo from the IL post-processor host can
+            // leak System.Private.CoreLib into Unity Mono assemblies.
+            AssemblyNameReference runtimeAssembly = null;
+            foreach (AssemblyNameReference reference in _module.AssemblyReferences)
+            {
+                if (reference.Name == "UnityMeta.Runtime")
+                {
+                    runtimeAssembly = reference;
+                    break;
+                }
+            }
+
+            if (runtimeAssembly == null)
+            {
+                throw new InvalidOperationException(
+                    "UnityMeta.Runtime is not referenced by the target assembly.");
+            }
+
+            var runtimeType = new TypeReference(
+                "UnityMeta", "MetaRuntimeServices", _module, runtimeAssembly, false);
+            var helperDefinition = new MethodReference(
+                "AreEqual", _module.TypeSystem.Boolean, runtimeType)
+            {
+                HasThis = false
+            };
+            var genericParameter = new GenericParameter("T", helperDefinition);
+            helperDefinition.GenericParameters.Add(genericParameter);
+            helperDefinition.Parameters.Add(new ParameterDefinition(genericParameter));
+            helperDefinition.Parameters.Add(new ParameterDefinition(genericParameter));
+
+            var closedHelper = new GenericInstanceMethod(helperDefinition);
             closedHelper.GenericArguments.Add(importedValueType);
 
             il.InsertBefore(anchor, il.Create(OpCodes.Ldloc, oldValueLocal));

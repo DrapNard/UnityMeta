@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.0-alpha.6
+
+### Fixed
+
+- Build field-change equality helper references against the target assembly's UnityMeta.Runtime and core-library references, avoiding invalid System.Private.CoreLib references in Unity Mono assemblies.
+- Allow field-change templates to bind [TargetInstance] object for reusable cross-type aspects.
+- Add standalone, Unity integration and OnChange sample coverage for generic target instances.
+
+
 ## 0.2.0-alpha.5
 
 ### Fixed
